@@ -315,3 +315,27 @@ abstract type BarrierLoweringOff end
 Possible types for barrier lowering model.
 """
 const BarrierLoweringType = Union{Type{BarrierLoweringOn}, Type{BarrierLoweringOff}}
+
+
+##########################################################
+##########################################################
+
+##### temperature dependence #######  #Steffi
+
+"""
+$(TYPEDEF)
+Abstract type for isothermal simulation, i.e. constant temperature.
+"""
+abstract type Isothermal end
+
+"""
+$(TYPEDEF)
+Abstract type for non-isothermal simulation, i.e. temperature dependent.
+"""
+abstract type NonIsothermal end
+
+##########################################################
+"""
+Possible types for temperature models.
+"""
+const TemperatureModel = Union{Type{Isothermal}, Type{NonIsothermal}}
