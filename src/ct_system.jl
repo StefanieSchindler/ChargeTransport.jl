@@ -998,6 +998,8 @@ mutable struct Data{TFuncs <: Function, TVoltageFunc <: Function, TGenerationDat
     """
     laserModel::LaserModelType
 
+    
+
     ###############################################################
     ####        Information on present charge carriers         ####
     ###############################################################
@@ -1039,6 +1041,13 @@ mutable struct Data{TFuncs <: Function, TVoltageFunc <: Function, TGenerationDat
     """
     index_psi::QType
 
+    #Steffi
+    """
+    Index for the temperature unknown. Only meaningful if temperatureModel == Type{NonIsothermal}; set automatically in
+    build_system, analogous to index_psi.
+    """
+    index_T::QType
+
     """
     This is a struct containing all information necessary to simulate Schottky Barrier Lowering.
     """
@@ -1061,6 +1070,12 @@ mutable struct Data{TFuncs <: Function, TVoltageFunc <: Function, TGenerationDat
     A DataType for transient or stationary calculations.
     """
     modelType::ModelType
+
+    #Steffi  
+    """     
+    A datatype defining the temperature model to be isothermal (T fixed via params.temperature) or non-isothermal (T as additional unknown, index_T).
+    """
+    temperatureModel::TemperatureModel
 
     """
     A DataType for for generation model.
@@ -1235,6 +1250,7 @@ function Data(grid, numberOfCarriers; constants = ChargeTransport.constants, con
     data.fluxApproximation = FluxApproximationType[ExcessChemicalPotential for i in 1:numberOfCarriers]
     data.calculationType = OutOfEquilibrium      # do performances InEquilibrium or OutOfEquilibrium
     data.modelType = Stationary                  # indicates if we need additional time dependent part
+    data.temperatureModel = Isothermal           # indicates if we have an isothernal or non-isothermal simulation #Steffi
     data.generationModel = GenerationNone        # generation model
     data.λ1 = 1.0                   # λ1: embedding parameter for NLP
     data.λ2 = 1.0                   # λ2: embedding parameter for G
@@ -1409,6 +1425,13 @@ function build_system(grid, data, ::Type{ContQF}; kwargs...)
     num_species_sys = data.params.numberOfCarriers + 1
     data.index_psi = num_species_sys
 
+    # add temperature as a species if non-isothermal model is chosen #Steffi
+    if data.temperatureModel == NonIsothermal
+        num_species_sys += 1
+        data.index_T = num_species_sys
+    end
+
+
     ionicCarrierListHelp = Int64[]
     trapCarrierListHelp = Int64[]
     # store indices of ionic carriers
@@ -1485,6 +1508,11 @@ function build_system(grid, data, ::Type{ContQF}; kwargs...)
 
     # enable lastly the electric potential on whole domain
     enable_species!(ctsys, data.index_psi, 1:data.params.numberOfRegions)
+
+    # add temperature as a species if non-isothermal model is chosen #Steffi
+    if data.temperatureModel == NonIsothermal
+        enable_species!(ctsys, data.index_T, 1:data.params.numberOfRegions)
+    end
 
     ######################################
     # Fill in boundary parameters. By default, we set the boundary values the same as the adjacent inner cell.
