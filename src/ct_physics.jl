@@ -1,6 +1,57 @@
 ##########################################################
 ##########################################################
 
+##### auxiliary functions for temperature dependence #######  #Steffi
+"""
+$(TYPEDSIGNATURES)
+
+Function returns the temperature, depending on the temperature model. 
+If the temperature model is isothermal, the temperature is constant and given by data.params.temperature.
+If the temperature model is non-isothermal, the temperature is the unknown.
+"""
+
+# Steffi: hier besser u[data.index_T]/data.params.temperature wie Markus vorgeschlagen hat?
+@inline function temperature(u, data)
+    if data.temperatureModel == NonIsothermal
+        return u[data.index_T]
+    else
+        return data.params.temperature
+    end
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Returns the logmean of two positive numbers. If the numbers are almost equal, the mean is the arithmetic mean to avoid 
+numerical issues. 
+"""
+
+@inline function logmean(a, b; atol = 1e-5)
+    (a ≤ 0 || b ≤ 0) && throw(DomainError((a, b), "a and b must be positive"))
+    if isapprox(a, b; atol=atol)
+        return 0.5 * (a + b)
+    else
+        return (a - b) / log(a / b)
+    end
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Return the logmean of the temperature, depending on the temperature model.
+"""
+
+@inline function temperatureLogmean(u, data)
+    if data.temperatureModel == NonIsothermal
+       return logmean(u[data.index_T, 1], u[data.index_T, 2])
+    else
+        return data.params.temperature
+    end
+end
+
+##########################################################
+##########################################################
+
 """
 $(TYPEDSIGNATURES)
 
