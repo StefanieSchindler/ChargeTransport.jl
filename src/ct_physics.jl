@@ -1181,6 +1181,14 @@ function storage!(f, u, node, data, ::Type{OutOfEquilibrium})
 
     f[ipsi] = 0.0
 
+    #Steffi: In case of non-isothermal simulation, we have to add the storage term for the temperature equation, which is given by
+    #``f[iT] = c_v ∂_t T``, where ``c_v`` is the volumetric heat capacity, which is currently assumend to be constant.
+    if data.temperatureModel == NonIsothermal
+        iT = data.index_T
+        c_v = params.heatCapacity
+        f[iT] = c_v * u[iT]
+    end
+
     return
 
 end
