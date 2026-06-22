@@ -6,8 +6,8 @@
 $(TYPEDSIGNATURES)
 
 Function returns the temperature, depending on the temperature model. 
-If the temperature model is isothermal, the temperature is constant and given by data.params.temperature.
-If the temperature model is non-isothermal, the temperature is the unknown.
+If the temperature model is isothermal, the temperature is constant and given by data.params.temperature as it was before.
+If the temperature model is non-isothermal, the temperature is an unknown.
 """
 
 # Steffi: hier besser u[data.index_T]/data.params.temperature wie Markus vorgeschlagen hat?
@@ -19,6 +19,16 @@ If the temperature model is non-isothermal, the temperature is the unknown.
     end
 end
 
+# returns temperature for left or right side of an edge
+@inline function temperature(u, data, side)
+    if data.temperatureModel == NonIsothermal
+        return u[data.index_T, side]
+    else
+        return data.params.temperature
+    end
+end
+
+# Steffi
 """
 $(TYPEDSIGNATURES)
 
@@ -35,6 +45,7 @@ numerical issues.
     end
 end
 
+# Steffi
 """
 $(TYPEDSIGNATURES)
 
@@ -148,7 +159,7 @@ function etaFunction!(u, node::VoronoiFVM.Node, data, icc)
 
     E = data.tempBEE1[icc]
 
-    return data.params.chargeNumbers[icc] / (data.constants.k_B * data.params.temperature) * ((u[icc] - u[data.index_psi]) * data.constants.q + E)
+    return data.params.chargeNumbers[icc] / (data.constants.k_B * temperature(u, data)) * ((u[icc] - u[data.index_psi]) * data.constants.q + E)
 
 end
 
@@ -163,7 +174,7 @@ function etaFunction!(u, bnode::VoronoiFVM.BNode, data, icc) # bnode.index refer
     get_BEE!(icc, bnode::VoronoiFVM.BNode, data)
     E = data.tempBEE1[icc]
 
-    return data.params.chargeNumbers[icc] / (data.constants.k_B * data.params.temperature) * ((u[icc] - u[data.index_psi]) * data.constants.q + E)
+    return data.params.chargeNumbers[icc] / (data.constants.k_B * temperature(u, data)) * ((u[icc] - u[data.index_psi]) * data.constants.q + E)
 end
 
 
@@ -179,8 +190,8 @@ function etaFunction!(u, edge::VoronoiFVM.Edge, data, icc)
 
     E1 = data.tempBEE1[icc];  E2 = data.tempBEE2[icc]
 
-    return etaFunction(u[data.index_psi, 1], u[icc, 1], data.params.temperature, E1, data.params.chargeNumbers[icc], data.constants),
-        etaFunction(u[data.index_psi, 2], u[icc, 2], data.params.temperature, E2, data.params.chargeNumbers[icc], data.constants)
+    return etaFunction(u[data.index_psi, 1], u[icc, 1], temperature(u, data,1), E1, data.params.chargeNumbers[icc], data.constants),
+        etaFunction(u[data.index_psi, 2], u[icc, 2], temperature(u, data,2), E2, data.params.chargeNumbers[icc], data.constants)
 end
 
 """
@@ -198,6 +209,7 @@ function etaFunction(sol, ireg::Int, ctsys, icc::QType)
     solcc = view(sol[icc, :], subgrid(grid, [ireg]))
     solpsi = view(sol[data.index_psi, :], subgrid(grid, [ireg]))
 
+    # Steffi: sol hier richtig? und braucht man ireg als drittes Argument in temperature function?
     return @. data.params.chargeNumbers[icc] / (data.constants.k_B * data.params.temperature) * ((solcc - solpsi) * data.constants.q + Ecc)
 end
 
@@ -312,7 +324,8 @@ function get_density(sol, data, icc, ireg, ; inode)
     E = data.params.bandEdgeEnergy[icc, ireg]
     z = data.params.chargeNumbers[icc]
 
-    eta = etaFunction(sol[data.index_psi, inode], sol[icc, inode], data.params.temperature, E, z, data.constants)
+    #Steffi: stimmt es, hier sol zu nehmen?
+    eta = etaFunction(sol[data.index_psi, inode], sol[icc, inode], temperature(sol, data), E, z, data.constants)
 
     return N .* data.F[icc].(eta)
 end
@@ -509,7 +522,7 @@ function breaction!(f, u, bnode, data, ::Type{SchottkyContact})
         get_DOS!(icc, bnode, data);  get_BEE!(icc, bnode, data)
         Ni = data.tempDOS1[icc]
         Ei = data.tempBEE1[icc]
-        etaFix = - params.chargeNumbers[icc] / (data.constants.k_B * params.temperature) * (((Ec - Ei) - params.SchottkyBarrier[bnode.region]))
+        etaFix = - params.chargeNumbers[icc] / (data.constants.k_B * temperature(u, data)) * (((Ec - Ei) - params.SchottkyBarrier[bnode.region]))
 
         ncc = get_density!(u, bnode, data, icc)
 
@@ -633,7 +646,7 @@ function breaction!(f, u, bnode, data, ::Type{InterfaceRecombination})
     n = get_density!(u, bnode, data, iphin)
     p = get_density!(u, bnode, data, iphip)
 
-    exponentialTerm = exp((q * u[iphin] - q * u[iphip]) / (k_B * params.temperature))
+    exponentialTerm = exp((q * u[iphin] - q * u[iphip]) / (k_B * temperature(u, data)))
     excessDensTerm = n * p * (1.0 - exponentialTerm)
 
     if params.recombinationSRHvelocity[iphip, bnode.region] ≈ 0.0
@@ -834,7 +847,7 @@ function StimulatedRecombination(u, node, data)
     c0 = 299_792_458
     k0 = 2 * pi / paramsoptical.laserWavelength
     ω0 = k0 * c0
-    kBT = k_B * params.temperature
+    kBT = k_B * temperature(u, data)
 
     Ec = get_BEE!(iphin, node, data)
     Ev = get_BEE!(iphip, node, data)
@@ -886,7 +899,7 @@ function addRecombination!(f, u, node, data)
     taup = params.recombinationSRHLifetime[iphip, ireg]
     p0 = params.recombinationSRHTrapDensity[iphip, ireg]
 
-    exponentialTerm = exp((q * u[iphin] - q * u[iphip]) / (k_B * data.params.temperature))
+    exponentialTerm = exp((q * u[iphin] - q * u[iphip]) / (k_B * temperature(u, data)))
     excessDensTerm = n * p * (1.0 - exponentialTerm)
 
     # calculate recombination kernel. If user adjusted Auger, radiative or SRH recombination,
@@ -1598,7 +1611,7 @@ function SRRecombination!(f, u, bnode, data)
     (; k_B, q) = data.constants
 
 
-    exponentialTerm = exp((q * u[iphin] - q * u[iphip]) / (k_B * params.temperature))
+    exponentialTerm = exp((q * u[iphin] - q * u[iphip]) / (k_B * data.params.temperature))
     excessDensTerm = n * p * (1.0 - exponentialTerm)
 
     if params.recombinationSRHvelocity[iphip, bnode.region] ≈ 0.0
