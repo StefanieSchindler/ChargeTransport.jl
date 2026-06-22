@@ -190,8 +190,8 @@ function etaFunction!(u, edge::VoronoiFVM.Edge, data, icc)
 
     E1 = data.tempBEE1[icc];  E2 = data.tempBEE2[icc]
 
-    return etaFunction(u[data.index_psi, 1], u[icc, 1], temperature(u, data,1), E1, data.params.chargeNumbers[icc], data.constants),
-        etaFunction(u[data.index_psi, 2], u[icc, 2], temperature(u, data,2), E2, data.params.chargeNumbers[icc], data.constants)
+    return etaFunction(u[data.index_psi, 1], u[icc, 1], temperature(u, data, 1), E1, data.params.chargeNumbers[icc], data.constants),
+        etaFunction(u[data.index_psi, 2], u[icc, 2], temperature(u, data, 2), E2, data.params.chargeNumbers[icc], data.constants)
 end
 
 """
@@ -210,7 +210,7 @@ function etaFunction(sol, ireg::Int, ctsys, icc::QType)
     solpsi = view(sol[data.index_psi, :], subgrid(grid, [ireg]))
 
     # Steffi: sol hier richtig? und braucht man ireg als drittes Argument in temperature function?
-    return @. data.params.chargeNumbers[icc] / (data.constants.k_B * data.params.temperature) * ((solcc - solpsi) * data.constants.q + Ecc)
+    return @. data.params.chargeNumbers[icc] / (data.constants.k_B * temperature(sol, data)) * ((solcc - solpsi) * data.constants.q + Ecc)
 end
 
 
@@ -1611,7 +1611,7 @@ function SRRecombination!(f, u, bnode, data)
     (; k_B, q) = data.constants
 
 
-    exponentialTerm = exp((q * u[iphin] - q * u[iphip]) / (k_B * data.params.temperature))
+    exponentialTerm = exp((q * u[iphin] - q * u[iphip]) / (k_B * temperature(u, data)))
     excessDensTerm = n * p * (1.0 - exponentialTerm)
 
     if params.recombinationSRHvelocity[iphip, bnode.region] ≈ 0.0
@@ -1659,7 +1659,7 @@ function SRHRecombination!(f, u, node, data)
     taup = params.recombinationSRHLifetime[iphip, ireg]
     p0 = params.recombinationSRHTrapDensity[iphip, ireg]
 
-    exponentialTerm = exp((q * u[iphin] - q * u[iphip]) / (k_B * data.params.temperature))
+    exponentialTerm = exp((q * u[iphin] - q * u[iphip]) / (k_B * temperature(u, data)))
     excessDensTerm = n * p * (1.0 - exponentialTerm)
 
     kernelSRH = params.prefactor_SRH / (taup * (n + n0) + taun * (p + p0))
@@ -1693,7 +1693,7 @@ function RadiativeRecombination!(f, u, node, data)
     n = get_density!(u, node, data, iphin)
     p = get_density!(u, node, data, iphip)
 
-    exponentialTerm = exp((q * u[iphin] - q * u[iphip]) / (k_B * data.params.temperature))
+    exponentialTerm = exp((q * u[iphin] - q * u[iphip]) / (k_B * temperature(u, data)))
     excessDensTerm = n * p * (1.0 - exponentialTerm)
 
     # calculate recombination kernel. If user adjusted Auger, radiative or SRH recombination,
@@ -1747,7 +1747,7 @@ function addTrapCaptureEscape!(f, u, node, data, ::Type{TrapCaptureEscape})
     (; k_B, q) = data.constants
 
     capture = data.params.recombinationTrapCaptureRates
-    T = data.params.temperature
+    T = temperature(u, data)
 
     for icc in data.chargeCarrierList
         ncc = get_density!(u, node, data, icc)
