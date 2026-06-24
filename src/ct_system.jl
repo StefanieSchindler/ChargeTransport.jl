@@ -629,8 +629,8 @@ function Params(numberOfRegions, numberOfBoundaryRegions, numberOfCarriers)
     params.r0 = 0.0                 # r0 prefactor electro-chemical reaction
     params.prefactor_SRH = 1.0
     params.generationPeak = 0.0     # parameter which shifts Beer-Lambert generation peak
-    params.thermalConductivity = 0.0 * W / (m * K) #Steffi: Hier der richtige Ort? Welcher Wert?
-    params.heatCapacity = 0.0 * J / (m³ * K) #Steffi: Hier der richtige Ort? Welcher Wert?
+    params.thermalConductivity = 130.0 * W / (m * K) #Steffi: Hier der richtige Ort? Welcher Wert?
+    params.heatCapacity = 1.6e6 * J / (m³ * K) #Steffi: Hier der richtige Ort? Welcher Wert?
 
     ###############################################################
     ####              number of boundary regions               ####

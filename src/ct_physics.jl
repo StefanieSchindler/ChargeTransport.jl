@@ -1266,6 +1266,11 @@ function flux!(f, u, edge, data, ::Type{OutOfEquilibrium})
         chargeCarrierFlux!(f, u, edge, data, icc, data.fluxApproximation[icc])
     end
 
+    #Steffi
+    if data.temperatureModel == NonIsothermal   
+        heatFlux!(f, u, edge, data)
+    end
+
     return
 end
 
@@ -1364,6 +1369,16 @@ function chargeCarrierFlux!(f, u, edge, data, icc, ::Type{ExcessChemicalPotentia
     return
 
 end
+
+#Steffi  
+function heatFlux!(f, u, edge, data)
+    iT = data.index_T
+    params = data.params
+    T_K = temperature(u, data, 1) #temperature at node k # Da heatFlux! nur aufgerufen wird, wenn NonIsothemal, könnte man auch einfach u[iT,1] schreiben
+    T_L = temperature(u, data, 2) #temperature at node l
+    f[iT] = - params.thermalConductivity * (T_L - T_K)
+end
+
 
 # Reconstructing the concentration gradients
 function ConcentrationGradient(f, u, edge, data)
