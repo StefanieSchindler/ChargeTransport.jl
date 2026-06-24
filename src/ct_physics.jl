@@ -209,8 +209,8 @@ function etaFunction(sol, ireg::Int, ctsys, icc::QType)
     solcc = view(sol[icc, :], subgrid(grid, [ireg]))
     solpsi = view(sol[data.index_psi, :], subgrid(grid, [ireg]))
 
-    # Steffi: sol hier richtig? und braucht man ireg als drittes Argument in temperature function?
-    return @. data.params.chargeNumbers[icc] / (data.constants.k_B * temperature(sol, data)) * ((solcc - solpsi) * data.constants.q + Ecc)
+    # Steffi: Ich weiss nicht, wie ich params.temperature heir ersetzen kann?
+    return @. data.params.chargeNumbers[icc] / (data.constants.k_B * params.temperature) * ((solcc - solpsi) * data.constants.q + Ecc)
 end
 
 
@@ -324,8 +324,8 @@ function get_density(sol, data, icc, ireg, ; inode)
     E = data.params.bandEdgeEnergy[icc, ireg]
     z = data.params.chargeNumbers[icc]
 
-    #Steffi: stimmt es, hier sol zu nehmen?
-    eta = etaFunction(sol[data.index_psi, inode], sol[icc, inode], temperature(sol, data), E, z, data.constants)
+    #Steffi: ich weiss nicht, wie ich params.temperature hier ersetzen kann?
+    eta = etaFunction(sol[data.index_psi, inode], sol[icc, inode], params.temperature, E, z, data.constants)
 
     return N .* data.F[icc].(eta)
 end

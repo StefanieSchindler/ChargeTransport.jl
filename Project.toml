@@ -15,6 +15,7 @@ LessUnitful = "f29f6376-6e90-4d80-80c9-fb8ec61203d5"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Roots = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
+Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 VoronoiFVM = "82b139dc-5afc-11e9-35da-9b9bdfd336f3"
 
 [compat]
@@ -33,6 +34,7 @@ SimplexGridFactory = "2.6.0"
 SpecialFunctions = "2.7.2"
 Test = "1.10"
 Triangulate = "3.0"
+Unitful = "1.28.0"
 VoronoiFVM = "2.13, 3.0"
 julia = "1.10"
 
