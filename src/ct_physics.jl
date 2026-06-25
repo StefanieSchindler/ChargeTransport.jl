@@ -209,8 +209,9 @@ function etaFunction(sol, ireg::Int, ctsys, icc::QType)
     solcc = view(sol[icc, :], subgrid(grid, [ireg]))
     solpsi = view(sol[data.index_psi, :], subgrid(grid, [ireg]))
 
-    # Steffi: Ich weiss nicht, wie ich params.temperature heir ersetzen kann?
-    return @. data.params.chargeNumbers[icc] / (data.constants.k_B * params.temperature) * ((solcc - solpsi) * data.constants.q + Ecc)
+    # Steffi: Ich weiss nicht, wie ich params.temperature hier ersetzen kann?
+    T = data.params.temperature
+    return @. data.params.chargeNumbers[icc] / (data.constants.k_B * T) * ((solcc - solpsi) * data.constants.q + Ecc)
 end
 
 
