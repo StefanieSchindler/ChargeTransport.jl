@@ -445,6 +445,15 @@ function breaction!(f, u, bnode, data, ::Type{OhmicContactRobin})
 
     boundary_dirichlet!(f, u, bnode, species = iphin, region = bnode.region, value = Δu)
     boundary_dirichlet!(f, u, bnode, species = iphip, region = bnode.region, value = Δu)
+
+    #Steffi
+    if data.temperatureModel == NonIsothermal
+    boundary_dirichlet!(f, u, bnode,
+        species = data.index_T,
+        region  = bnode.region,
+        value   = data.params.boundaryTemperature[bnode.region])
+    end
+    
     return
 
 end

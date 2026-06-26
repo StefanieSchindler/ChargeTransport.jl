@@ -427,6 +427,12 @@ mutable struct Params
     """
     surfaceChargeDensityGate::Array{Float64, 1}
 
+    #Steffi
+    """
+    An array containing constant values for the temperature at the boundary.
+    """
+    boundaryTemperature::Array{Float64, 1}
+
     ###############################################################
     ####                  number of carriers                   ####
     ###############################################################
@@ -641,6 +647,7 @@ function Params(numberOfRegions, numberOfBoundaryRegions, numberOfCarriers)
     params.dielectricConstantOxideGate = zeros(Float64, numberOfBoundaryRegions)
     params.thicknessOxideGate = zeros(Float64, numberOfBoundaryRegions)
     params.surfaceChargeDensityGate = zeros(Float64, numberOfBoundaryRegions)
+    params.boundaryTemperature = zeros(Float64, numberOfBoundaryRegions) #Steffi
 
     ###############################################################
     ####                  number of carriers                   ####

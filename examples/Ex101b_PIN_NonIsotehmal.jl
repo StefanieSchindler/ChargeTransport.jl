@@ -111,8 +111,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     iphin = 1 # electron quasi Fermi potential
     iphip = 2 # hole quasi Fermi potential
     numberOfCarriers = 2
-    ##set indices of the temperature
-    iT = 3
+
     
 
     # We define the physical data.
@@ -162,6 +161,8 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     ## Following variable declares, if we want to solve isothermal or non-isothermal problem
     data.temperatureModel = NonIsothermal
 
+    @show data.index_T
+
     ## Here, we need to specify which numbers are associated with electron and hole quasi
     ## Fermi potential. Further, the desired recombination processes can be chosen here.
     data.bulkRecombination = set_bulk_recombination(;
@@ -196,8 +197,12 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     params.chargeNumbers[iphin] = -1
     params.chargeNumbers[iphip] = 1
 
-    params.thermalConductivity = 1.0 #Welcher Wert?
-    params.heatCapacity = 1.0 #Welcher Wert?
+     # Thermal parameters (spatially constant
+    params.thermalConductivity = 46.0 #Welcher Wert?
+    params.heatCapacity = 1.76e6 #Welcher Wert?
+
+    params.boundaryTemperature[bregionAcceptor] = 400.0 * K
+    params.boundaryTemperature[bregionDonor]    = 300.0 * K
 
     for ireg in 1:numberOfRegions # region data
 
@@ -288,8 +293,20 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     ################################################################################
 
     ## calculate equilibrium solution and as initial guess
+    data.temperatureModel = Isothermal        # Steffi: Gleichgewicht ohne T lösen
     solution = equilibrium_solve!(ctsys, control = control)
     inival = solution
+    data.temperatureModel = NonIsothermal     # Steffi: danach wieder einschalten
+
+    ## Steffi: Initialisierung der Temperatur
+    inival[data.index_T, :] .= params.temperature
+    coord = grid[Coordinates][1, :]
+    L   = coord[end] - coord[1]
+    T_l = params.boundaryTemperature[bregionAcceptor]
+    T_r = params.boundaryTemperature[bregionDonor]
+    for i in eachindex(coord)
+      inival[data.index_T, i] = T_r + (T_l - T_r) * (1.0 - coord[i] / L)
+    end
 
     if test == false
         println("*** done\n")
