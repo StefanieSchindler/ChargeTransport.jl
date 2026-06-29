@@ -36,9 +36,9 @@ Returns the logmean of two positive numbers. If the numbers are almost equal, th
 numerical issues. 
 """
 
-@inline function logmean(a, b; atol = 1e-5)
+@inline function logmean(a, b; rtol = 1e-6)
     (a ≤ 0 || b ≤ 0) && throw(DomainError((a, b), "a and b must be positive"))
-    if isapprox(a, b; atol=atol)
+    if isapprox(a, b; rtol=rtol)
         return 0.5 * (a + b)
     else
         return (a - b) / log(a / b)
@@ -170,7 +170,6 @@ The argument of the statistics function for boundary nodes.
 """
 function etaFunction!(u, bnode::VoronoiFVM.BNode, data, icc) # bnode.index refers to index in overall mesh
 
-
     get_BEE!(icc, bnode::VoronoiFVM.BNode, data)
     E = data.tempBEE1[icc]
 
@@ -230,6 +229,8 @@ right-hand side of the Poisson equation.
 function etaFunction(psi, phi, temperature, E, z, constants)
     return @. z / (constants.k_B * temperature) * ((phi - psi) * constants.q + E)
 end
+
+
 
 ##########################################################
 ##########################################################
@@ -448,10 +449,10 @@ function breaction!(f, u, bnode, data, ::Type{OhmicContactRobin})
 
     #Steffi
     if data.temperatureModel == NonIsothermal
-    boundary_dirichlet!(f, u, bnode,
-        species = data.index_T,
-        region  = bnode.region,
-        value   = data.params.boundaryTemperature[bnode.region])
+        boundary_dirichlet!(f, u, bnode,
+          species = data.index_T,
+          region  = bnode.region,
+          value   = data.params.boundaryTemperature[bnode.region])
     end
     
     return
@@ -1299,12 +1300,12 @@ function chargeCarrierFlux!(f, u, edge, data, icc, ::Type{ScharfetterGummel})
     ireg = edge.region
     (; q, k_B) = data.constants
 
-    j0 = k_B * params.temperature / q * params.mobility[icc, ireg]
+    j0 = k_B * temperatureLogmean(u, data) / q * params.mobility[icc, ireg]
 
     dpsi = u[ipsi, 2] - u[ipsi, 1]
     bandEdgeDiff = paramsnodal.bandEdgeEnergy[icc, nodel] - paramsnodal.bandEdgeEnergy[icc, nodek]
 
-    bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * params.temperature))
+    bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * temperatureLogmean(u, data)))
     ncck, nccl = get_density!(u, edge, data, icc)
 
     f[icc] = - params.chargeNumbers[icc] * q * j0 * (bm * nccl - bp * ncck)

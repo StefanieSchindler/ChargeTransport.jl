@@ -159,9 +159,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     data.modelType = Stationary
 
     ## Following variable declares, if we want to solve isothermal or non-isothermal problem
-    data.temperatureModel = NonIsothermal
-
-    @show data.index_T
+    data.temperatureModel = Isothermal
 
     ## Here, we need to specify which numbers are associated with electron and hole quasi
     ## Fermi potential. Further, the desired recombination processes can be chosen here.
@@ -298,15 +296,17 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     inival = solution
     data.temperatureModel = NonIsothermal     # Steffi: danach wieder einschalten
 
-    ## Steffi: Initialisierung der Temperatur
+    # NEU: inival mit korrekter Größe erstellen
+    inival = unknowns(ctsys)      # erstellt neuen Array mit 4 Spezies
+    inival .= 0.0
+
+    # Drift-Diffusion-Teil aus equilibrium_solve! übernehmen
+    inival[iphin, :]          .= solution[iphin, :]
+    inival[iphip, :]          .= solution[iphip, :]
+    inival[data.index_psi, :] .= solution[data.index_psi, :]
+
+    # Temperatur initialisieren
     inival[data.index_T, :] .= params.temperature
-    coord = grid[Coordinates][1, :]
-    L   = coord[end] - coord[1]
-    T_l = params.boundaryTemperature[bregionAcceptor]
-    T_r = params.boundaryTemperature[bregionDonor]
-    for i in eachindex(coord)
-      inival[data.index_T, i] = T_r + (T_l - T_r) * (1.0 - coord[i] / L)
-    end
 
     if test == false
         println("*** done\n")
@@ -373,8 +373,10 @@ function test()
     return main(test = true, unknown_storage = :dense) ≈ testval && main(test = true, unknown_storage = :sparse) ≈ testval
 end
 
+#=
 if test == false
     println("This message should show when the PIN module has successfully recompiled.")
 end
+=#
 
 end # module

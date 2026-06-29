@@ -68,7 +68,8 @@ export InterfaceNone, InterfaceRecombination
 
 export OhmicContactModelType, OhmicContactDirichlet, OhmicContactRobin
 
-export ModelType, Transient, Stationary, Isothermal, NonIsothermal
+export ModelType, Transient, Stationary
+export TemperatureModel, Isothermal, NonIsothermal #Steffi
 
 export FluxApproximationType
 export ScharfetterGummel, ExcessChemicalPotential, DiffusionEnhanced, DiffusionEnhancedModifiedDrift, GeneralizedSG
