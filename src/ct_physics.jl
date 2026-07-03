@@ -12,8 +12,8 @@ If the temperature model is non-isothermal, the temperature is an unknown.
 
 # Steffi: hier besser u[data.index_T]/data.params.temperature wie Markus vorgeschlagen hat?
 @inline function temperature(u, data)
-    if data.temperatureModel == NonIsothermal
-        return u[data.index_T]
+    if data.temperatureModel == NonIsothermal 
+        return data.params.temperature # u[data.index_T]
     else
         return data.params.temperature
     end
@@ -22,7 +22,7 @@ end
 # returns temperature for left or right side of an edge
 @inline function temperature(u, data, side)
     if data.temperatureModel == NonIsothermal
-        return u[data.index_T, side]
+        return data.params.temperature # u[data.index_T, side]
     else
         return data.params.temperature
     end
@@ -54,7 +54,7 @@ Return the logmean of the temperature, depending on the temperature model.
 
 @inline function temperatureLogmean(u, data)
     if data.temperatureModel == NonIsothermal
-       return logmean(u[data.index_T, 1], u[data.index_T, 2])
+       return data.params.temperature # logmean(u[data.index_T, 1], u[data.index_T, 2])
     else
         return data.params.temperature
     end
@@ -158,7 +158,6 @@ function etaFunction!(u, node::VoronoiFVM.Node, data, icc)
     get_BEE!(icc, node::VoronoiFVM.Node, data)
 
     E = data.tempBEE1[icc]
-
     return data.params.chargeNumbers[icc] / (data.constants.k_B * temperature(u, data)) * ((u[icc] - u[data.index_psi]) * data.constants.q + E)
 
 end
@@ -327,7 +326,7 @@ function get_density(sol, data, icc, ireg, ; inode)
     z = data.params.chargeNumbers[icc]
 
     #Steffi: ich weiss nicht, wie ich params.temperature hier ersetzen kann?
-    eta = etaFunction(sol[data.index_psi, inode], sol[icc, inode], params.temperature, E, z, data.constants)
+    eta = etaFunction(sol[data.index_psi, inode], sol[icc, inode], data.params.temperature, E, z, data.constants)
 
     return N .* data.F[icc].(eta)
 end
@@ -448,13 +447,13 @@ function breaction!(f, u, bnode, data, ::Type{OhmicContactRobin})
     boundary_dirichlet!(f, u, bnode, species = iphip, region = bnode.region, value = Δu)
 
     #Steffi
+  #  println("boundary_dirichlet! for temperature", data.index_T, data.params.boundaryTemperature[bnode.region])
     if data.temperatureModel == NonIsothermal
         boundary_dirichlet!(f, u, bnode,
           species = data.index_T,
           region  = bnode.region,
           value   = data.params.boundaryTemperature[bnode.region])
     end
-    
     return
 
 end
@@ -494,6 +493,14 @@ function breaction!(f, u, bnode, data, ::Type{OhmicContactDirichlet})
     boundary_dirichlet!(f, u, bnode, species = iphin, region = bnode.region, value = Δu)
     boundary_dirichlet!(f, u, bnode, species = iphip, region = bnode.region, value = Δu)
     boundary_dirichlet!(f, u, bnode, species = ipsi, region = bnode.region, value = ψ0 + Δu)
+
+    # Steffi: Dirichlet-Randbedingung für T
+    if data.temperatureModel == NonIsothermal
+        boundary_dirichlet!(f, u, bnode,
+            species = data.index_T,
+            region  = bnode.region,
+            value   = data.params.boundaryTemperature[bnode.region])
+    end
     return
 
 end
@@ -1238,6 +1245,15 @@ function displacementFlux!(f, u, edge, data)
     paramsnodal = data.paramsnodal
 
     ipsi = data.index_psi
+    #Steffi debugging
+   #= if data.calculationType == InEquilibrium
+        println("u[1,1] = ", ForwardDiff.value(u[1,1]))
+        println("u[2,1] = ", ForwardDiff.value(u[2,1]))
+        println("u[3,1] = ", ForwardDiff.value(u[3,1]))
+        println("u[4,1] = ", ForwardDiff.value(u[4,1]))
+    end
+    =#
+
     nodel = edge.node[2]   # left node
     nodek = edge.node[1]   # right node
     ireg = edge.region
@@ -1259,6 +1275,7 @@ end
 
 function flux!(f, u, edge, data, ::Type{InEquilibrium})
     ## discretization of the displacement flux (LHS of Poisson equation)
+ #   @show u[data.index_psi, 1]
     displacementFlux!(f, u, edge, data)
     return
 end
@@ -1388,9 +1405,11 @@ end
 function heatFlux!(f, u, edge, data)
     iT = data.index_T
     params = data.params
-    T_K = temperature(u, data, 1) #temperature at node k # Da heatFlux! nur aufgerufen wird, wenn NonIsothemal, könnte man auch einfach u[iT,1] schreiben
-    T_L = temperature(u, data, 2) #temperature at node l
+    T_K = u[iT,1] #temperature(u, data, 1) #temperature at node k # Da heatFlux! nur aufgerufen wird, wenn NonIsothemal, könnte man auch einfach u[iT,1] schreiben
+    T_L = u[iT,2] # temperature(u, data, 2) #temperature at node l
     f[iT] = - params.thermalConductivity * (T_L - T_K)
+   # println("heatFlux!", f[iT])
+    return
 end
 
 

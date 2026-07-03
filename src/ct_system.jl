@@ -635,7 +635,7 @@ function Params(numberOfRegions, numberOfBoundaryRegions, numberOfCarriers)
     params.r0 = 0.0                 # r0 prefactor electro-chemical reaction
     params.prefactor_SRH = 1.0
     params.generationPeak = 0.0     # parameter which shifts Beer-Lambert generation peak
-    params.thermalConductivity = 130.0  * W /(m * K) #Steffi: Hier der richtige Ort? Welcher Wert?
+    params.thermalConductivity = 130.0 * W /(m * K) #Steffi: Hier der richtige Ort? Welcher Wert?
     params.heatCapacity = 1.6e6 * J / (m^3 * K) #Steffi: Hier der richtige Ort? Welcher Wert?
 
     ###############################################################
@@ -648,6 +648,7 @@ function Params(numberOfRegions, numberOfBoundaryRegions, numberOfCarriers)
     params.thicknessOxideGate = zeros(Float64, numberOfBoundaryRegions)
     params.surfaceChargeDensityGate = zeros(Float64, numberOfBoundaryRegions)
     params.boundaryTemperature = zeros(Float64, numberOfBoundaryRegions) #Steffi
+    params.boundaryTemperature .= 300.0 * K #Steffi: Default value for boundary temperature
 
     ###############################################################
     ####                  number of carriers                   ####
@@ -1091,7 +1092,7 @@ mutable struct Data{TFuncs <: Function, TVoltageFunc <: Function, TGenerationDat
     """
     modelType::ModelType
 
-    #Steffi  
+    #Steffi 
     """     
     A datatype defining the temperature model to be isothermal (T fixed via params.temperature) or non-isothermal (T as additional unknown, index_T).
     """
@@ -1258,6 +1259,7 @@ function Data(grid, numberOfCarriers; constants = ChargeTransport.constants, con
     data.ionicCarrierList = IonicCarrier[]
     data.trapCarrierList = TrapCarrier[]
     data.index_psi = numberOfCarriers + 1
+    # data.index_T = data.index_psi + 1 #Steffi: index_T is set in build_system, because it depends on whether temperatureModel is Isothermal or NonIsothermal
     data.barrierLoweringInfo = BarrierLoweringSpecies()
     data.barrierLoweringInfo.BarrierLoweringOn = BarrierLoweringOff # set in general case barrier lowering off
 
@@ -1450,7 +1452,6 @@ function build_system(grid, data, ::Type{ContQF}; kwargs...)
         num_species_sys += 1
         data.index_T = num_species_sys
     end
-
 
     ionicCarrierListHelp = Int64[]
     trapCarrierListHelp = Int64[]
@@ -1860,8 +1861,12 @@ Base implementation of equilibrium_solve: vacancyEnergyCalculation = false
 
 """
 function _equilibrium_solve!(::Val{false}, ctsys::System; inival, control, nonlinear_steps, verbose = verbose, yabstol, ytol, maxiter)
-
+    
     ctsys.fvmsys.physics.data.calculationType = InEquilibrium
+    # Steffi: save current temperature model and set to isothermal
+   # savedTempModel = ctsys.fvmsys.physics.data.temperatureModel
+   # ctsys.fvmsys.physics.data.temperatureModel = Isothermal
+    
     grid = ctsys.fvmsys.grid
 
     data = ctsys.fvmsys.physics.data
@@ -1998,6 +2003,10 @@ function _equilibrium_solve!(::Val{false}, ctsys::System; inival, control, nonli
 
     # save changes on fvmsys of VoronoiFVM likewise in ctsys.data
     ctsys.data = ctsys.fvmsys.physics.data
+
+    # Steffi: set back temperature model
+   # ctsys.fvmsys.physics.data.temperatureModel = savedTempModel
+
 
     return sol
 

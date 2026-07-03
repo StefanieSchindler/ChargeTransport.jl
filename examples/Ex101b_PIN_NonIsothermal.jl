@@ -4,7 +4,6 @@
 #=
 # GaAs diode (1D).
 ([source code](@__SOURCE_URL__))
-
 We simulate charge transport in a GaAs pin diode, where we use the van Roosbroeck
 system of equations as charge transport model. The unknowns are given by the quasi Fermi
 potentials of electrons and holes $\varphi_n$, $\varphi_p$ and the electric potential $\psi$.
@@ -159,7 +158,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     data.modelType = Stationary
 
     ## Following variable declares, if we want to solve isothermal or non-isothermal problem
-    data.temperatureModel = Isothermal
+    data.temperatureModel = NonIsothermal
 
     ## Here, we need to specify which numbers are associated with electron and hole quasi
     ## Fermi potential. Further, the desired recombination processes can be chosen here.
@@ -195,11 +194,11 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     params.chargeNumbers[iphin] = -1
     params.chargeNumbers[iphip] = 1
 
-     # Thermal parameters (spatially constant
-    params.thermalConductivity = 46.0 #Welcher Wert?
-    params.heatCapacity = 1.76e6 #Welcher Wert?
+     # Thermal parameters (spatially constant)
+    params.thermalConductivity = 1.0 #Welcher Wert?
+    params.heatCapacity = 1.0 #Welcher Wert?
 
-    params.boundaryTemperature[bregionAcceptor] = 400.0 * K
+    params.boundaryTemperature[bregionAcceptor] = 300.0 * K
     params.boundaryTemperature[bregionDonor]    = 300.0 * K
 
     for ireg in 1:numberOfRegions # region data
@@ -238,6 +237,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     # dependent on the parameters. It is important that this is in the end, otherwise our
     # VoronoiFVMSys is not dependent on the data we initialized but rather on default data.
     ctsys = System(grid, data, unknown_storage = unknown_storage)
+
 
     if test == false
         ## Here we can show region dependent physical parameters. show_params() only supports
@@ -291,23 +291,21 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     ################################################################################
 
     ## calculate equilibrium solution and as initial guess
-    data.temperatureModel = Isothermal        # Steffi: Gleichgewicht ohne T lösen
-    solution = equilibrium_solve!(ctsys, control = control)
-    inival = solution
-    data.temperatureModel = NonIsothermal     # Steffi: danach wieder einschalten
-
-    # NEU: inival mit korrekter Größe erstellen
-    inival = unknowns(ctsys)      # erstellt neuen Array mit 4 Spezies
-    inival .= 0.0
-
-    # Drift-Diffusion-Teil aus equilibrium_solve! übernehmen
-    inival[iphin, :]          .= solution[iphin, :]
-    inival[iphip, :]          .= solution[iphip, :]
-    inival[data.index_psi, :] .= solution[data.index_psi, :]
-
+    inival_eq = unknowns(ctsys)
+    inival_eq .= 0.0
     # Temperatur initialisieren
-    inival[data.index_T, :] .= params.temperature
+    if data.temperatureModel == NonIsothermal
+        inival_eq[data.index_T, :] .= T
+    end
 
+    solution = equilibrium_solve!(ctsys; inival = inival_eq, control = control)
+    #inival = solution
+    #solution = equilibrium_solve!(ctsys, control = control)
+    inival = solution
+
+    @show solution, size(solution)
+
+    
     if test == false
         println("*** done\n")
     end
@@ -317,6 +315,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     end
     ################################################################################
 
+    println("calculationType: ", ctsys.fvmsys.physics.data.calculationType)
     maxBias = voltageAcceptor # bias goes until the given voltage at acceptor boundary
     biasValues = range(0, stop = maxBias, length = 32)
     IV = zeros(0)
@@ -358,6 +357,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
         reveal(vis)
     end
 
+    @show solution, size(solution)
     testval = solution[15]
     return testval
 

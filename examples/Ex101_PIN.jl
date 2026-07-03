@@ -149,6 +149,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     # We initialize the Data instance and fill in predefined data.
     data = Data(grid, numberOfCarriers)
 
+
     ## Following variable declares, if we want to solve stationary or transient problem
     data.modelType = Stationary
 
@@ -223,6 +224,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     # VoronoiFVMSys is not dependent on the data we initialized but rather on default data.
     ctsys = System(grid, data, unknown_storage = unknown_storage)
 
+
     if test == false
         ## Here we can show region dependent physical parameters. show_params() only supports
         ## region dependent parameters, but, if one wishes to print nodal dependent parameters,
@@ -277,6 +279,9 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     ## calculate equilibrium solution and as initial guess
     solution = equilibrium_solve!(ctsys, control = control)
     inival = solution
+
+    @show solution, size(solution)
+   @show inival, size(inival)
 
     if test == false
         println("*** done\n")
