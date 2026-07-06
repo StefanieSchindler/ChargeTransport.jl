@@ -22,7 +22,7 @@ end
 # returns temperature for left or right side of an edge
 @inline function temperature(u, data, side)
     if data.temperatureModel == NonIsothermal
-        return data.params.temperature # u[data.index_T, side]
+        return  data.params.temperature #  u[data.index_T, side]
     else
         return data.params.temperature
     end

@@ -298,7 +298,8 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
         inival_eq[data.index_T, :] .= T
     end
 
-    solution = equilibrium_solve!(ctsys; inival = inival_eq, control = control)
+    data.temperatureModel = Isothermal
+    solution = equilibrium_solve!(ctsys, inival = inival_eq, control = control)
     #inival = solution
     #solution = equilibrium_solve!(ctsys, control = control)
     inival = solution

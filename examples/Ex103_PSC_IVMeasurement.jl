@@ -170,6 +170,7 @@ function main(;
     ## InterfaceRecombination (inner boundary).
     data.boundaryType[p.bregionAcceptor] = OhmicContact
     data.boundaryType[p.bregionDonor] = OhmicContact
+    
 
     ## With this method, the user enable the ionic carrier parsed to ionicCarrier and gives
     ## gives the information on which regions this ionic carrier is defined.

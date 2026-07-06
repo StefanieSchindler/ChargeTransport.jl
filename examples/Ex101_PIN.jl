@@ -333,6 +333,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
         reveal(vis)
     end
 
+    @show solution, size(solution)
     testval = solution[15]
     return testval
 

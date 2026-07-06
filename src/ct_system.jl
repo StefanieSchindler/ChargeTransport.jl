@@ -647,7 +647,7 @@ function Params(numberOfRegions, numberOfBoundaryRegions, numberOfCarriers)
     params.dielectricConstantOxideGate = zeros(Float64, numberOfBoundaryRegions)
     params.thicknessOxideGate = zeros(Float64, numberOfBoundaryRegions)
     params.surfaceChargeDensityGate = zeros(Float64, numberOfBoundaryRegions)
-    params.boundaryTemperature = zeros(Float64, numberOfBoundaryRegions) #Steffi
+    params.boundaryTemperature = ones(Float64, numberOfBoundaryRegions) #Steffi
     params.boundaryTemperature .= 300.0 * K #Steffi: Default value for boundary temperature
 
     ###############################################################
