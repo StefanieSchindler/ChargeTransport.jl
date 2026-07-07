@@ -198,7 +198,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     params.thermalConductivity = 1.0 #Welcher Wert?
     params.heatCapacity = 1.0 #Welcher Wert?
 
-    params.boundaryTemperature[bregionAcceptor] = 300.0 * K
+    params.boundaryTemperature[bregionAcceptor] = 400.0 * K
     params.boundaryTemperature[bregionDonor]    = 300.0 * K
 
     for ireg in 1:numberOfRegions # region data

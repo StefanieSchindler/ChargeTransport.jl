@@ -838,10 +838,6 @@ function reaction!(f, u, node, data, ::Type{InEquilibrium})
             f[icc] = u[icc]
         end
     end
-    if data.temperatureModel == Isothermal && data.index_T > 0
-        f[data.index_T] = u[data.index_T] - data.params.temperature
-    end
-
     return
 end
 
@@ -1280,6 +1276,10 @@ function flux!(f, u, edge, data, ::Type{InEquilibrium})
    # @show u[data.index_psi, 1]
     displacementFlux!(f, u, edge, data)
    # println("f[data.index_psi,1] = ", ForwardDiff.value(f[data.index_psi,1]))
+   #Steffi
+    if data.temperatureModel == NonIsothermal
+        heatFlux!(f, u, edge, data)
+    end
     return
 end
 
