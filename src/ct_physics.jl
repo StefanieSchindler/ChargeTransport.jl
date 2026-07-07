@@ -838,6 +838,9 @@ function reaction!(f, u, node, data, ::Type{InEquilibrium})
             f[icc] = u[icc]
         end
     end
+    if data.temperatureModel == Isothermal && data.index_T > 0
+        f[data.index_T] = u[data.index_T] - data.params.temperature
+    end
 
     return
 end
@@ -1246,13 +1249,12 @@ function displacementFlux!(f, u, edge, data)
 
     ipsi = data.index_psi
     #Steffi debugging
-   #= if data.calculationType == InEquilibrium
-        println("u[1,1] = ", ForwardDiff.value(u[1,1]))
-        println("u[2,1] = ", ForwardDiff.value(u[2,1]))
+    #=
+    if data.calculationType == InEquilibrium
         println("u[3,1] = ", ForwardDiff.value(u[3,1]))
-        println("u[4,1] = ", ForwardDiff.value(u[4,1]))
     end
     =#
+    
 
     nodel = edge.node[2]   # left node
     nodek = edge.node[1]   # right node
@@ -1275,8 +1277,9 @@ end
 
 function flux!(f, u, edge, data, ::Type{InEquilibrium})
     ## discretization of the displacement flux (LHS of Poisson equation)
- #   @show u[data.index_psi, 1]
+   # @show u[data.index_psi, 1]
     displacementFlux!(f, u, edge, data)
+   # println("f[data.index_psi,1] = ", ForwardDiff.value(f[data.index_psi,1]))
     return
 end
 

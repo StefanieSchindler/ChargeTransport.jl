@@ -293,12 +293,13 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     ## calculate equilibrium solution and as initial guess
     inival_eq = unknowns(ctsys)
     inival_eq .= 0.0
+    inival_eq[data.index_psi, :] .=  0.0 # random initial guess for electric potential  
     # Temperatur initialisieren
     if data.temperatureModel == NonIsothermal
         inival_eq[data.index_T, :] .= T
     end
 
-    data.temperatureModel = Isothermal
+   # data.temperatureModel = Isothermal
     solution = equilibrium_solve!(ctsys, inival = inival_eq, control = control)
     #inival = solution
     #solution = equilibrium_solve!(ctsys, control = control)
@@ -306,6 +307,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
 
     @show solution, size(solution)
 
+   # data.temperatureModel = NonIsothermal
     
     if test == false
         println("*** done\n")
