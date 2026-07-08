@@ -13,7 +13,7 @@ If the temperature model is non-isothermal, the temperature is an unknown.
 # Steffi: hier besser u[data.index_T]/data.params.temperature wie Markus vorgeschlagen hat?
 @inline function temperature(u, data)
     if data.temperatureModel == NonIsothermal 
-        return data.params.temperature # u[data.index_T]
+        return u[data.index_T]
     else
         return data.params.temperature
     end
@@ -22,7 +22,7 @@ end
 # returns temperature for left or right side of an edge
 @inline function temperature(u, data, side)
     if data.temperatureModel == NonIsothermal
-        return  data.params.temperature #  u[data.index_T, side]
+        return  u[data.index_T, side]
     else
         return data.params.temperature
     end
@@ -54,7 +54,7 @@ Return the logmean of the temperature, depending on the temperature model.
 
 @inline function temperatureLogmean(u, data)
     if data.temperatureModel == NonIsothermal
-       return data.params.temperature # logmean(u[data.index_T, 1], u[data.index_T, 2])
+       return logmean(u[data.index_T, 1], u[data.index_T, 2])
     else
         return data.params.temperature
     end
@@ -325,8 +325,8 @@ function get_density(sol, data, icc, ireg, ; inode)
     E = data.params.bandEdgeEnergy[icc, ireg]
     z = data.params.chargeNumbers[icc]
 
-    #Steffi: ich weiss nicht, wie ich params.temperature hier ersetzen kann?
-    eta = etaFunction(sol[data.index_psi, inode], sol[icc, inode], data.params.temperature, E, z, data.constants)
+    #Steffi
+    eta = etaFunction(sol[data.index_psi, inode], sol[icc, inode], sol[data.index_T, inode], E, z, data.constants)
 
     return N .* data.F[icc].(eta)
 end
@@ -1608,20 +1608,20 @@ function chargeCarrierFlux!(f, u, edge, data, icc, ::Type{GeneralizedSG})
     ireg = edge.region
     (; k_B, q) = data.constants
 
-    j0 = (k_B * params.temperature / q) * params.mobility[icc, ireg]
+    j0 = (k_B * temperatureLogmean(u, data) / q) * params.mobility[icc, ireg]
 
     dpsi = u[ipsi, 2] - u[ipsi, 1]
     bandEdgeDiff = paramsnodal.bandEdgeEnergy[icc, nodel] - paramsnodal.bandEdgeEnergy[icc, nodek]
     etak, etal = etaFunction!(u, edge, data, icc)
 
     # use Sedan flux as starting guess
-    Q = params.chargeNumbers[icc] * ((dpsi * q - bandEdgeDiff) / (k_B * params.temperature)) + (etal - etak) - log(data.F[icc](etal)) + log(data.F[icc](etak))
+    Q = params.chargeNumbers[icc] * ((dpsi * q - bandEdgeDiff) / (k_B * temperatureLogmean(u, data))) + (etal - etak) - log(data.F[icc](etal)) + log(data.F[icc](etak))
     bp, bm = fbernoulli_pm(Q)
     ncck, nccl = get_density!(u, edge, data, icc)
 
     jInitial = (bm * nccl - bp * ncck)
 
-    implicitEq(j::Real) = (fbernoulli_pm(params.chargeNumbers[icc] * ((dpsi * q - bandEdgeDiff)) / (k_B * params.temperature) + params.γ * j)[2] * exp(etal) - fbernoulli_pm(params.chargeNumbers[icc] * ((dpsi * q - bandEdgeDiff) / (k_B * params.temperature)) - params.γ * j)[1] * exp(etak)) - j
+    implicitEq(j::Real) = (fbernoulli_pm(params.chargeNumbers[icc] * ((dpsi * q - bandEdgeDiff)) / (k_B * temperatureLogmean(u, data)) + params.γ * j)[2] * exp(etal) - fbernoulli_pm(params.chargeNumbers[icc] * ((dpsi * q - bandEdgeDiff) / (k_B * temperatureLogmean(u, data))) - params.γ * j)[1] * exp(etak)) - j
 
     delta = 1.0e-18 + 1.0e-14 * abs(value(jInitial))
     oldup = 1.0

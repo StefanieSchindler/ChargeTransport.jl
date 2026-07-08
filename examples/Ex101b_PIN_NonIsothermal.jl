@@ -35,7 +35,7 @@ end
 function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown_storage = :sparse)
 
     # unit factors and constants
-    @local_unitfactors μm cm s ns V K
+    @local_unitfactors μm cm s ns V K W J m
     constants = ChargeTransport.constants
     (; q, k_B, ε_0) = constants
 
@@ -195,11 +195,11 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     params.chargeNumbers[iphip] = 1
 
      # Thermal parameters (spatially constant)
-    params.thermalConductivity = 1.0 #Welcher Wert?
-    params.heatCapacity = 1.0 #Welcher Wert?
+    params.thermalConductivity = 55.0 * W / (m * K)
+    params.heatCapacity = 2.0e6 * J / (K * m^3) #Welcher Wert?
 
-    params.boundaryTemperature[bregionAcceptor] = 400.0 * K
-    params.boundaryTemperature[bregionDonor]    = 300.0 * K
+    params.boundaryTemperature[bregionAcceptor] = 300.0 * K
+    params.boundaryTemperature[bregionDonor]    = 330.0 * K
 
     for ireg in 1:numberOfRegions # region data
 
