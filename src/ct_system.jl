@@ -1863,10 +1863,6 @@ Base implementation of equilibrium_solve: vacancyEnergyCalculation = false
 function _equilibrium_solve!(::Val{false}, ctsys::System; inival, control, nonlinear_steps, verbose = verbose, yabstol, ytol, maxiter)
     
     ctsys.fvmsys.physics.data.calculationType = InEquilibrium
-    # Steffi: save current temperature model and set to isothermal
-  #  savedTempModel = ctsys.fvmsys.physics.data.temperatureModel
- #   ctsys.fvmsys.physics.data.temperatureModel = Isothermal
-    
     grid = ctsys.fvmsys.grid
 
     data = ctsys.fvmsys.physics.data
@@ -2003,10 +1999,6 @@ function _equilibrium_solve!(::Val{false}, ctsys::System; inival, control, nonli
 
     # save changes on fvmsys of VoronoiFVM likewise in ctsys.data
     ctsys.data = ctsys.fvmsys.physics.data
-
-    # Steffi: set back temperature model
-   # ctsys.fvmsys.physics.data.temperatureModel = savedTempModel
-
 
     return sol
 

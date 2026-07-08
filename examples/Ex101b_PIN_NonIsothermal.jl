@@ -294,20 +294,14 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     inival_eq = unknowns(ctsys)
     inival_eq .= 0.0
     inival_eq[data.index_psi, :] .=  0.0 # random initial guess for electric potential  
-    # Temperatur initialisieren
+    # Temperature initial guess
     if data.temperatureModel == NonIsothermal
         inival_eq[data.index_T, :] .= T
     end
 
-   # data.temperatureModel = Isothermal
     solution = equilibrium_solve!(ctsys, inival = inival_eq, control = control)
-    #inival = solution
-    #solution = equilibrium_solve!(ctsys, control = control)
     inival = solution
 
-    @show solution, size(solution)
-
-   # data.temperatureModel = NonIsothermal
     
     if test == false
         println("*** done\n")
@@ -360,7 +354,6 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
         reveal(vis)
     end
 
-    @show solution, size(solution)
     testval = solution[15]
     return testval
 
@@ -376,10 +369,9 @@ function test()
     return main(test = true, unknown_storage = :dense) ≈ testval && main(test = true, unknown_storage = :sparse) ≈ testval
 end
 
-#=
+
 if test == false
     println("This message should show when the PIN module has successfully recompiled.")
 end
-=#
 
 end # module

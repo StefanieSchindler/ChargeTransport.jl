@@ -1273,9 +1273,7 @@ end
 
 function flux!(f, u, edge, data, ::Type{InEquilibrium})
     ## discretization of the displacement flux (LHS of Poisson equation)
-   # @show u[data.index_psi, 1]
     displacementFlux!(f, u, edge, data)
-   # println("f[data.index_psi,1] = ", ForwardDiff.value(f[data.index_psi,1]))
    #Steffi
     if data.temperatureModel == NonIsothermal
         heatFlux!(f, u, edge, data)
