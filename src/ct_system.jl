@@ -1915,7 +1915,14 @@ function _equilibrium_solve!(::Val{false}, ctsys::System; inival, control, nonli
             Ncc = params.bDensityOfStates[icc, ibreg] + paramsnodal.densityOfStates[icc, bnode[ibreg]]
             Ecc = params.bBandEdgeEnergy[icc, ibreg] + paramsnodal.bandEdgeEnergy[icc, bnode[ibreg]]
 
-            eta = params.chargeNumbers[icc] / (k_B * params.temperature / q) * ((sol[icc, bnode[ibreg]] - sol[ipsi, bnode[ibreg]]) + Ecc / q)
+            # Steffi: use temperature from solution for non-isothermal, params.temperature for isothermal
+            if data.temperatureModel == NonIsothermal
+                T = sol[data.index_T, bnode[ibreg]]
+            else
+                T = params.temperature
+            end
+
+            eta = params.chargeNumbers[icc] / (k_B * T / q) * ((sol[icc, bnode[ibreg]] - sol[ipsi, bnode[ibreg]]) + Ecc / q)
             params.bDensityEQ[icc, ibreg] = Ncc * data.F[icc](eta)
         end
     end
@@ -2050,7 +2057,7 @@ function _equilibrium_solve!(::Val{true}, ctsys::System; inival, control, nonlin
 
     iphin = data.bulkRecombination.iphin # integer index of φ_n
     iphip = data.bulkRecombination.iphip # integer index of φ_p
-    T = params.temperature
+   # T = params.temperature
     (; k_B, q) = data.constants
 
     for iicc in data.ionicCarrierList
@@ -2058,6 +2065,13 @@ function _equilibrium_solve!(::Val{true}, ctsys::System; inival, control, nonlin
         for ireg in iicc.regions
 
             icc = iicc.ionicCarrier # species number chosen by user
+
+            #------ Steffi: use temperature from solution for non-isothermal, params.temperature for isothermal ------
+            if data.temperatureModel == NonIsothermal
+                T = sol[data.index_T, bnode[ibreg]]
+            else
+                T = params.temperature
+            end
 
             # --- define function to be minimized ---
             mOmega = data.regionVolumes[ireg]
