@@ -738,3 +738,108 @@ function plot_IV(Plotter, biasValues, IV, title, ; plotGridpoints = false)
 
     return reveal(vis)
 end
+
+# Steffi: Temperature plotting routines
+
+"""
+$(TYPEDSIGNATURES)
+Method for plotting the temperature.
+One input parameter is the boolean plotGridpoints which makes it possible to plot markers,
+which indicate where the nodes are located.
+"""
+function plot_temperature!(visualizer, ctsys, solution, title; plotGridpoints = false, temperatureModel = Isothermal)
+
+    if temperatureModel == Isothermal
+        return nothing
+    end
+
+    if plotGridpoints == true
+        marker = :circle
+    else
+        marker = :none
+    end
+
+    grid = ctsys.fvmsys.grid
+    data = ctsys.fvmsys.physics.data
+    coord = grid[Coordinates]
+    iT = data.index_T
+
+
+    scalarplot!(
+        visualizer,
+        grid,
+        solution[iT, :];
+        color = :blue,
+        markershape = marker,
+        markersize = 8,
+        title = title,
+        xlabel = L"\text{position [m]}",
+        ylabel = L"\text{temperature [K]}"
+    )
+
+    return nothing
+end
+
+
+function plot_temperature(Plotter, ctsys, solution, title; plotGridpoints = false)
+    @warn "plot_temperature() is deprecated, please use plot_temperature!() with a GridVisualizer"
+
+    vis = GridVisualizer(Plotter = Plotter)
+    plot_temperature!(vis, ctsys, solution, title; plotGridpoints)
+
+    return reveal(vis)
+end
+
+"""
+$(TYPEDSIGNATURES)
+Method for plotting the temperature flux.
+One input parameter is the boolean plotGridpoints which makes it possible to plot markers,
+which indicate where the nodes are located.
+"""
+
+
+# Steffi: temperature flux
+function plot_temperatureFlux!(visualizer, ctsys, solution, title; plotGridpoints = false, temperatureModel = Isothermal)   
+
+    if temperatureModel == Isothermal
+        return nothing
+    end
+
+    if plotGridpoints == true
+        marker = :circle
+    else
+        marker = :none
+    end
+
+    grid = ctsys.fvmsys.grid
+    data = ctsys.fvmsys.physics.data
+    iT = data.index_T
+    coord = grid[Coordinates]
+    system = ctsys.fvmsys
+    nf = VoronoiFVM.nodeflux(system, solution)
+
+
+    vectorplot!(
+        visualizer,
+        grid,
+        nf[:,iT,:],
+        color = :blue,
+        title = title,
+        markershape = marker,
+        markersize = 8,
+        xlabel = L"\text{position [m]}",
+        ylabel = L"\text{temperature flux [W/m²]}"
+    )
+
+    return nothing
+end
+
+
+function plot_temperatureFlux(Plotter, ctsys, solution, title; plotGridpoints = false)
+    @warn "plot_temperatureFlux() is deprecated, please use plot_temperatureFlux!() with a GridVisualizer"
+
+    vis = GridVisualizer(Plotter = Plotter)
+    plot_temperatureFlux!(vis, ctsys, solution, title; plotGridpoints)
+
+    return reveal(vis)
+end

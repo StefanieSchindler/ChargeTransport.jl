@@ -12,7 +12,7 @@ using ExtendableGrids: ExtendableGrids, BFaceNodes, BFaceRegions, CellNodes,
 using ExtendableGrids: TokenStream, gettoken, expecttoken
 using ForwardDiff: ForwardDiff
 # visualizer wrapper
-using GridVisualize: GridVisualize, GridVisualizer, reveal, scalarplot!
+using GridVisualize: GridVisualize, GridVisualizer, reveal, scalarplot!, vectorplot!
 # for interpolation of data
 using Interpolations: Interpolations, Gridded, Linear
 # for latex labels
@@ -126,6 +126,9 @@ export plot_densities, plot_energies, plot_doping, plot_electroNeutralSolutionBo
 export plot_solution, plot_IV
 export plot_densities!, plot_energies!, plot_doping!, plot_electroNeutralSolutionBoltzmann!
 export plot_solution!, plot_IV!
+export plot_temperature, plot_temperature!
+export plot_temperatureFlux, plot_temperatureFlux!
+
 #################################################################
 include("ct_io.jl")
 export read_diodat

@@ -93,7 +93,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     bfacemask!(grid, [h_pdoping + h_intrinsic], [h_pdoping + h_intrinsic], bregionJunction2) # second inner interface
 
     if Plotter !== nothing
-        vis = GridVisualizer(; Plotter, layout = (4, 2), size = (1550, 800))
+        vis = GridVisualizer(; Plotter, layout = (5, 2), size = (1550, 800))
         gridplot!(vis[1, 1], grid; Plotter, legend = :lt, title = "Grid", xlabel = L"\text{space [m]}", show = true)
     end
 
@@ -350,7 +350,10 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
         plot_solution!(vis[3, 2], ctsys, solution, "Solution for applied voltage Δu = $(biasValues[end])", label_solution; plotGridpoints = true)
         plot_densities!(vis[4, 1], ctsys, solution, "Carrier densities for applied voltage Δu = $(biasValues[end])", label_density, plotGridpoints = true)
         plot_IV!(vis[4, 2], biasValues, IV, "IV curve for applied voltage Δu = $(biasValues[end])", plotGridpoints = true)
-
+        plot_temperature!(vis[5, 1], ctsys, solution, "Temperature for applied voltage Δu = $(biasValues[end])"; plotGridpoints = true, temperatureModel = data.temperatureModel)
+        plot_temperatureFlux!(vis[5, 2], ctsys, solution, "Temperature flux for applied voltage Δu = $(biasValues[end])"; plotGridpoints = true, temperatureModel = data.temperatureModel)
+        
+   
         reveal(vis)
     end
 
