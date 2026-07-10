@@ -769,7 +769,7 @@ function plot_temperature!(visualizer, ctsys, solution, title; plotGridpoints = 
         visualizer,
         grid,
         solution[iT, :];
-        color = :blue,
+        color = :orange,
         markershape = marker,
         markersize = 8,
         title = title,
@@ -823,7 +823,7 @@ function plot_temperatureFlux!(visualizer, ctsys, solution, title; plotGridpoint
         visualizer,
         grid,
         nf[:,iT,:],
-        color = :blue,
+        color = :orange,
         title = title,
         markershape = marker,
         markersize = 8,
