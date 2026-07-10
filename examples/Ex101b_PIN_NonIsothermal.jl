@@ -197,6 +197,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
      # Thermal parameters (spatially constant)
     params.thermalConductivity = 55.0 * W / (m * K)
     params.heatCapacity = 2.0e6 * J / (K * m^3) #Welcher Wert?
+    params.heatSource = x -> 0.0
 
     params.boundaryTemperature[bregionAcceptor] = 300.0 * K
     params.boundaryTemperature[bregionDonor]    = 330.0 * K

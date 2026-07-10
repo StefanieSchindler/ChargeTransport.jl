@@ -1870,6 +1870,11 @@ function addTrapCaptureEscape!(f, u, node, data)
 end
 
 
+"""
+$(TYPEDSIGNATURES)
+Include heat source term
+"""
+
 function heatSource!(f, u, node, data)
 
     if data.temperatureModel == Isothermal
@@ -1877,7 +1882,9 @@ function heatSource!(f, u, node, data)
     end
 
     iT = data.index_T
+    x = node.coord[node.index]
+    #f[iT] += data.params.heatSource(x)  
     f[iT] = 0.0
-
+    return nothing
 
 end

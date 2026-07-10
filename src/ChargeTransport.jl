@@ -93,6 +93,7 @@ export zeroVoltage
 export BeerLambert
 export storage!
 export reaction!, SRHRecombination!, RadiativeRecombination!, SRRecombination!, Photogeneration!
+export heatSource!
 ##################################################################
 
 include("ct_system.jl")

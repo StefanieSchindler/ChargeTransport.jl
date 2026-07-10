@@ -601,7 +601,18 @@ mutable struct Params
     """
     recombinationRadiative::Array{Float64, 1}
 
+    # Steffi    
+    ############################################################
+    ####        functions                                   ####
+    ############################################################
+    
+    """
+    A function for the heat source term
+    """
+    heatSource::Function
+
     ###############################################################
+
     Params() = new() # standard constructor
 
 end
@@ -704,6 +715,11 @@ function Params(numberOfRegions, numberOfBoundaryRegions, numberOfCarriers)
     params.generationIncidentPhotonFlux = zeros(Float64, numberOfRegions)
     params.generationAbsorption = zeros(Float64, numberOfRegions)
     params.recombinationRadiative = zeros(Float64, numberOfRegions)
+
+    ############################################################
+    ####        functions                                   ####
+    ############################################################
+    params.heatSource = x -> 0.0
 
     ###############################################################
     return params
@@ -1419,6 +1435,7 @@ function build_system(grid, data, ::Type{ContQF}; kwargs...)
             flux = flux!,
             reaction = reaction!,
             storage = storage!,
+            source = heatSource!,
             breaction = breaction!,
             bstorage = bstorage!,
             bflux = bflux!
@@ -1429,6 +1446,7 @@ function build_system(grid, data, ::Type{ContQF}; kwargs...)
             flux = flux!,
             reaction = reaction!,
             storage = storage!,
+            source = heatSource!,
             breaction = breaction!,
             bstorage = bstorage!,
             bflux = bflux!,
@@ -1685,6 +1703,7 @@ function build_system(grid, data, ::Type{DiscontQF}; kwargs...)
         reaction = reaction!,
         breaction = breaction!,
         storage = storage!,
+        source = heatSource!,
         bstorage = bstorage!,
         bflux = bflux!
     )
