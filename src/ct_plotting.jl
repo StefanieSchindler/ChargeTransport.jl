@@ -747,9 +747,11 @@ Method for plotting the temperature.
 One input parameter is the boolean plotGridpoints which makes it possible to plot markers,
 which indicate where the nodes are located.
 """
-function plot_temperature!(visualizer, ctsys, solution, title; plotGridpoints = false, temperatureModel = Isothermal)
+function plot_temperature!(visualizer, ctsys, solution, title; plotGridpoints = false)
 
-    if temperatureModel == Isothermal
+    data = ctsys.fvmsys.physics.data
+
+    if data.temperatureModel == Isothermal
         return nothing
     end
 
@@ -760,7 +762,6 @@ function plot_temperature!(visualizer, ctsys, solution, title; plotGridpoints = 
     end
 
     grid = ctsys.fvmsys.grid
-    data = ctsys.fvmsys.physics.data
     coord = grid[Coordinates]
     iT = data.index_T
 
@@ -799,9 +800,11 @@ which indicate where the nodes are located.
 
 
 # Steffi: temperature flux
-function plot_temperatureFlux!(visualizer, ctsys, solution, title; plotGridpoints = false, temperatureModel = Isothermal)   
+function plot_temperatureFlux!(visualizer, ctsys, solution, title; plotGridpoints = false)   
 
-    if temperatureModel == Isothermal
+    data = ctsys.fvmsys.physics.data 
+    
+    if data.temperatureModel == Isothermal
         return nothing
     end
 
@@ -812,7 +815,6 @@ function plot_temperatureFlux!(visualizer, ctsys, solution, title; plotGridpoint
     end
 
     grid = ctsys.fvmsys.grid
-    data = ctsys.fvmsys.physics.data
     iT = data.index_T
     coord = grid[Coordinates]
     system = ctsys.fvmsys

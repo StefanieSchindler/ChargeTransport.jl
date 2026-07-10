@@ -1868,3 +1868,16 @@ Include recombination between bands and traps
 function addTrapCaptureEscape!(f, u, node, data)
     return addTrapCaptureEscape!(f, u, node, data, data.bulkRecombination.bulk_recomb_trap)
 end
+
+
+function heatSource!(f, u, node, data)
+
+    if data.temperatureModel == Isothermal
+        return nothing
+    end
+
+    iT = data.index_T
+    f[iT] = 0.0
+
+
+end
