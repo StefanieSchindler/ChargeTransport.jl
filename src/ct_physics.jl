@@ -1875,7 +1875,11 @@ $(TYPEDSIGNATURES)
 Include heat source term
 """
 
-function heatSource!(f, u, node, data)
+function heatSource!(f, node, data)
+    if data.temperatureModel == NonIsothermal
+        f[data.index_T] = 0.1e-8
+    end
+
     return nothing
 
 end
