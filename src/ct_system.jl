@@ -1435,7 +1435,7 @@ function build_system(grid, data, ::Type{ContQF}; kwargs...)
             flux = flux!,
             reaction = reaction!,
             storage = storage!,
-            source = heatSource!,
+         #   source = heatSource!,
             breaction = breaction!,
             bstorage = bstorage!,
             bflux = bflux!
@@ -1446,7 +1446,7 @@ function build_system(grid, data, ::Type{ContQF}; kwargs...)
             flux = flux!,
             reaction = reaction!,
             storage = storage!,
-            source = heatSource!,
+          #  source = heatSource!,
             breaction = breaction!,
             bstorage = bstorage!,
             bflux = bflux!,
@@ -1703,7 +1703,7 @@ function build_system(grid, data, ::Type{DiscontQF}; kwargs...)
         reaction = reaction!,
         breaction = breaction!,
         storage = storage!,
-        source = heatSource!,
+      #  source = heatSource!,
         bstorage = bstorage!,
         bflux = bflux!
     )

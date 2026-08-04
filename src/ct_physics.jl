@@ -1876,15 +1876,6 @@ Include heat source term
 """
 
 function heatSource!(f, u, node, data)
-
-    if data.temperatureModel == Isothermal
-        return nothing
-    end
-
-    iT = data.index_T
-    x = node.coord[node.index]
-    #f[iT] += data.params.heatSource(x)  
-    f[iT] = 0.0
     return nothing
 
 end
