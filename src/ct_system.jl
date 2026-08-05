@@ -719,7 +719,7 @@ function Params(numberOfRegions, numberOfBoundaryRegions, numberOfCarriers)
     ############################################################
     ####        functions                                   ####
     ############################################################
-    params.heatSource = x -> 0.0
+    params.heatSource = (node, data) -> 0.0
 
     ###############################################################
     return params

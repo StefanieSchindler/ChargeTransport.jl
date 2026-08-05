@@ -198,6 +198,24 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     params.thermalConductivity = 55.0 * W / (m * K)
     params.heatCapacity = 2.0e6 * J / (K * m^3) #Welcher Wert?
 
+    #params.heatSource = (node, data) -> 0.0
+    
+    #= Steffi: Gaussian heat source term
+    params.heatSource = (node, data) -> begin
+        x = node.coord[1]
+        1.0e8 * exp(-x^2 / (1e-6)^2)
+    end
+    =#
+
+    # Region-dependent (only in region 3)
+    data.params.heatSource = (node, data) -> begin
+      if node.region == 2
+        return 5.0e8
+      else
+        return 0.0
+      end
+    end
+
     params.boundaryTemperature[bregionAcceptor] = 300.0 * K
     params.boundaryTemperature[bregionDonor]    = 330.0 * K
 

@@ -1872,12 +1872,13 @@ end
 
 """
 $(TYPEDSIGNATURES)
-Include heat source term
+Include a heat source term as an external source in the temperature equation. 
+The heat source is defined by the user in the parameters.
 """
 
 function heatSource!(f, node, data)
     if data.temperatureModel == NonIsothermal
-        f[data.index_T] = 0.1e-8
+        f[data.index_T] = data.params.heatSource(node,data)
     end
 
     return nothing
