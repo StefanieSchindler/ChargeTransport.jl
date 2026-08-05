@@ -5,38 +5,52 @@
 """
 $(TYPEDSIGNATURES)
 
-Function returns the temperature, depending on the temperature model. 
-If the temperature model is isothermal, the temperature is constant and given by data.params.temperature as it was before.
-If the temperature model is non-isothermal, the temperature is an unknown.
+Master function for the temperature that dispatches on the temperature model. 
 """
 
-# Steffi: hier besser u[data.index_T]/data.params.temperature wie Markus vorgeschlagen hat?
-@inline function temperature(u, data)
-    if data.temperatureModel == NonIsothermal 
-        return u[data.index_T]
-    else
-        return data.params.temperature
-    end
+function temperature(u, data)
+    return temperature(u, data, data.temperatureModel)
 end
 
-# returns temperature for left or right side of an edge
-@inline function temperature(u, data, side)
-    if data.temperatureModel == NonIsothermal
-        return  u[data.index_T, side]
-    else
-        return data.params.temperature
-    end
+#Isothermal case: constant temperature from params
+function temperature(u, data, ::Type{Isothermal})
+    return data.params.temperature
 end
 
-# Steffi
+#Non-isothermal case: temperature is a solution variable
+function temperature(u, data, ::Type{NonIsothermal})
+    return u[data.index_T]
+end
+
 """
 $(TYPEDSIGNATURES)
 
+Master function for the temperature for left or right side of an edge that dispatches on the temperature model. 
+"""
+
+# returns temperature for left or right side of an edge
+function temperature(u, data, side)
+   return temperature(u, data, data.temperatureModel, side)
+end
+
+#Isothermal case: constant temperature from params
+function temperature(u, data, ::Type{Isothermal}, side)
+    return data.params.temperature
+end
+
+#Non-isothermal case: temperature is a solution variable
+function temperature(u, data, ::Type{NonIsothermal}, side)
+    return u[data.index_T, side]
+end
+
+
+"""
+$(TYPEDSIGNATURES)
 Returns the logmean of two positive numbers. If the numbers are almost equal, the mean is the arithmetic mean to avoid 
 numerical issues. 
 """
 
-@inline function logmean(a, b; rtol = 1e-6)
+function logmean(a, b; rtol = 1e-6)
     (a ≤ 0 || b ≤ 0) && throw(DomainError((a, b), "a and b must be positive"))
     if isapprox(a, b; rtol=rtol)
         return 0.5 * (a + b)
@@ -52,14 +66,19 @@ $(TYPEDSIGNATURES)
 Return the logmean of the temperature, depending on the temperature model.
 """
 
-@inline function temperatureLogmean(u, data)
-    if data.temperatureModel == NonIsothermal
-       return logmean(u[data.index_T, 1], u[data.index_T, 2])
-    else
-        return data.params.temperature
-    end
+function temperatureLogmean(u, data)
+    return temperatureLogmean(u, data, data.temperatureModel)
 end
 
+#Isothermal case: constant temperature from params
+function temperatureLogmean(u, data, ::Type{Isothermal})
+    return data.params.temperature
+end
+
+#Non-isothermal case: temperature is a solution variable
+function temperatureLogmean(u, data, ::Type{NonIsothermal})
+    return logmean(u[data.index_T, 1], u[data.index_T, 2])
+end
 ##########################################################
 ##########################################################
 
