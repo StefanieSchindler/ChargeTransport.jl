@@ -22,26 +22,6 @@ function temperature(u, data, ::Type{NonIsothermal})
     return u[data.index_T]
 end
 
-"""
-$(TYPEDSIGNATURES)
-
-Master function for the temperature for left or right side of an edge that dispatches on the temperature model. 
-"""
-
-# returns temperature for left or right side of an edge
-function temperature(u, data, side)
-   return temperature(u, data, data.temperatureModel, side)
-end
-
-#Isothermal case: constant temperature from params
-function temperature(u, data, ::Type{Isothermal}, side)
-    return data.params.temperature
-end
-
-#Non-isothermal case: temperature is a solution variable
-function temperature(u, data, ::Type{NonIsothermal}, side)
-    return u[data.index_T, side]
-end
 
 
 """
@@ -207,8 +187,16 @@ function etaFunction!(u, edge::VoronoiFVM.Edge, data, icc)
 
     E1 = data.tempBEE1[icc];  E2 = data.tempBEE2[icc]
 
-    return etaFunction(u[data.index_psi, 1], u[icc, 1], temperature(u, data, 1), E1, data.params.chargeNumbers[icc], data.constants),
-        etaFunction(u[data.index_psi, 2], u[icc, 2], temperature(u, data, 2), E2, data.params.chargeNumbers[icc], data.constants)
+    if data.temperatureModel == NonIsothermal
+        T1 = u[data.index_T, 1]
+        T2 = u[data.index_T, 2]
+    else
+        T1 = data.params.temperature
+        T2 = data.params.temperature
+    end
+
+    return etaFunction(u[data.index_psi, 1], u[icc, 1], T1, E1, data.params.chargeNumbers[icc], data.constants),
+        etaFunction(u[data.index_psi, 2], u[icc, 2], T2, E2, data.params.chargeNumbers[icc], data.constants)
 end
 
 """
