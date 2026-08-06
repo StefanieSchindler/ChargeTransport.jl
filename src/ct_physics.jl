@@ -12,12 +12,24 @@ function temperature(u, data)
     return temperature(u, data, data.temperatureModel)
 end
 
-#Isothermal case: constant temperature from params
+
+"""
+$(TYPEDSIGNATURES)
+
+Returns the constant temperature value from data.params.temperature.
+Used when `data.temperatureModel == Isothermal`.
+"""
 function temperature(u, data, ::Type{Isothermal})
     return data.params.temperature
 end
 
-#Non-isothermal case: temperature is a solution variable
+
+"""
+$(TYPEDSIGNATURES)
+
+Returns the temperature as a solution variable from `u[data.index_T]`.
+Used when `data.temperatureModel == NonIsothermal`.
+"""
 function temperature(u, data, ::Type{NonIsothermal})
     return u[data.index_T]
 end
@@ -26,10 +38,10 @@ end
 
 """
 $(TYPEDSIGNATURES)
+
 Returns the logmean of two positive numbers. If the numbers are almost equal, the mean is the arithmetic mean to avoid 
 numerical issues. 
 """
-
 function logmean(a, b; rtol = 1e-6)
     (a ≤ 0 || b ≤ 0) && throw(DomainError((a, b), "a and b must be positive"))
     if isapprox(a, b; rtol=rtol)
@@ -39,26 +51,40 @@ function logmean(a, b; rtol = 1e-6)
     end
 end
 
-# Steffi
+
 """
 $(TYPEDSIGNATURES)
 
-Return the logmean of the temperature, depending on the temperature model.
+Master function for computing the logarithmic mean of temperatures, dispatching on
+the temperature model.
 """
 
 function temperatureLogmean(u, data)
     return temperatureLogmean(u, data, data.temperatureModel)
 end
 
-#Isothermal case: constant temperature from params
+"""
+$(TYPEDSIGNATURES)
+
+Returns the constant temperature from `data.params.temperature` for the isothermal case.
+"""
+
 function temperatureLogmean(u, data, ::Type{Isothermal})
     return data.params.temperature
 end
 
-#Non-isothermal case: temperature is a solution variable
+"""
+$(TYPEDSIGNATURES)
+
+Returns the logarithmic mean of the temperature at two node positions:
+`logmean(u[data.index_T, 1], u[data.index_T, 2])`.
+Used for flux calculations across edges in non-isothermal simulations.
+"""
+
 function temperatureLogmean(u, data, ::Type{NonIsothermal})
     return logmean(u[data.index_T, 1], u[data.index_T, 2])
 end
+
 ##########################################################
 ##########################################################
 
