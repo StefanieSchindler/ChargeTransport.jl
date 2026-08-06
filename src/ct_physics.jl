@@ -7,7 +7,6 @@ $(TYPEDSIGNATURES)
 
 Master function for the temperature that dispatches on the temperature model. 
 """
-
 function temperature(u, data)
     return temperature(u, data, data.temperatureModel)
 end
@@ -16,8 +15,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Returns the constant temperature value from data.params.temperature.
-Used when `data.temperatureModel == Isothermal`.
+Returns the constant temperature value from data.params.temperature if `data.temperatureModel == Isothermal`.
 """
 function temperature(u, data, ::Type{Isothermal})
     return data.params.temperature
@@ -27,8 +25,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Returns the temperature as a solution variable from `u[data.index_T]`.
-Used when `data.temperatureModel == NonIsothermal`.
+Returns the temperature as a solution variable from `u[data.index_T]` if `data.temperatureModel == NonIsothermal`.
 """
 function temperature(u, data, ::Type{NonIsothermal})
     return u[data.index_T]
@@ -1303,14 +1300,7 @@ function displacementFlux!(f, u, edge, data)
     params = data.params
     paramsnodal = data.paramsnodal
 
-    ipsi = data.index_psi
-    #Steffi debugging
-    #=
-    if data.calculationType == InEquilibrium
-        println("u[3,1] = ", ForwardDiff.value(u[3,1]))
-    end
-    =#
-    
+    ipsi = data.index_psi    
 
     nodel = edge.node[2]   # left node
     nodek = edge.node[1]   # right node
