@@ -1267,6 +1267,36 @@ function temperatureStorage!(f, u, node, data, ::Type{NonIsothermal})
     return nothing
 end
 
+##########################################################
+##########################################################
+
+"""
+$(TYPEDSIGNATURES)
+
+Master edgereaction! function that enters VoronoiFVM. It dispatches on the temperature model. #TODO: add calculationType?!
+"""
+edgereaction!(f, u, edge, data) = edgereaction!(f, u, edge, data, data.temperatureModel)
+
+edgereaction!(f, u, edge, data, ::Type{Isothermal}) = emptyFunction()
+
+function edgereaction!(f, u, edge, data, ::Type{NonIsothermal}) 
+    jouleHeating!(f, u, edge, data)
+    thomsonPeltierHeating!(f, u, edge, data)
+    return nothing
+end
+
+function jouleHeating!(f, u, edge, data)
+    # TODO: Implement Joule heating term
+    return nothing
+end
+
+function thomsonPeltierHeating!(f, u, edge, data)
+    # TODO: Implement Thomson-Peltier heating term
+    return nothing
+end
+
+##########################################################
+##########################################################
 
 function DensityProduct(f, u, node, data)
 

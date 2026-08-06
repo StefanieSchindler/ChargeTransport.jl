@@ -94,6 +94,8 @@ export BeerLambert
 export storage!
 export reaction!, SRHRecombination!, RadiativeRecombination!, SRRecombination!, Photogeneration!
 export heatSource!
+export edgereaction!, jouleHeating!, thomsonPeltierHeating!
+
 ##################################################################
 
 include("ct_system.jl")
