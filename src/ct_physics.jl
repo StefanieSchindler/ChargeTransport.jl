@@ -1307,10 +1307,8 @@ end
 function flux!(f, u, edge, data, ::Type{InEquilibrium})
     ## discretization of the displacement flux (LHS of Poisson equation)
     displacementFlux!(f, u, edge, data)
-   #Steffi
-    if data.temperatureModel == NonIsothermal
-        heatFlux!(f, u, edge, data)
-    end
+    #Steffi
+    heatFlux!(f, u, edge, data)
     return
 end
 
@@ -1329,9 +1327,8 @@ function flux!(f, u, edge, data, ::Type{OutOfEquilibrium})
     end
 
     #Steffi
-    if data.temperatureModel == NonIsothermal   
-        heatFlux!(f, u, edge, data)
-    end
+    heatFlux!(f, u, edge, data)
+    
 
     return
 end
@@ -1436,14 +1433,22 @@ function chargeCarrierFlux!(f, u, edge, data, icc, ::Type{ExcessChemicalPotentia
 end
 
 #Steffi  
+# Master function for heat flux on edges
 function heatFlux!(f, u, edge, data)
+    return heatFlux!(f, u, edge, data, data.temperatureModel)
+end
+
+# Isothermal case: no heat flux
+function heatFlux!(f, u, edge, data, ::Type{Isothermal})
+    return nothing
+end
+
+# Non-isothermal case: compute heat flux
+function heatFlux!(f, u, edge, data, ::Type{NonIsothermal})
     iT = data.index_T
     params = data.params
-    T_K = u[iT,1] #temperature(u, data, 1) #temperature at node k # Da heatFlux! nur aufgerufen wird, wenn NonIsothemal, könnte man auch einfach u[iT,1] schreiben
-    T_L = u[iT,2] # temperature(u, data, 2) #temperature at node l
-    f[iT] = - params.thermalConductivity * (T_L - T_K)
-   # println("heatFlux!", f[iT])
-    return
+    f[iT] = - params.thermalConductivity * (u[iT, 2] - u[iT, 1])
+    return nothing
 end
 
 
