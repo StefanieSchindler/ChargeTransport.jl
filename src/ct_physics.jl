@@ -1273,20 +1273,62 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Master edgereaction! function that enters VoronoiFVM. It dispatches on the temperature model. #TODO: add calculationType?!
+Master edgereaction! function that enters VoronoiFVM. It dispatches on the temperature model. 
+#TODO: add calculationType?!
 """
 edgereaction!(f, u, edge, data) = edgereaction!(f, u, edge, data, data.temperatureModel)
 
 edgereaction!(f, u, edge, data, ::Type{Isothermal}) = emptyFunction()
 
+""" 
+$(TYPEDSIGNATURES)
+
+In the non-isothermal case, it calls the jouleHeating! and thomsonPeltierHeating! functions.
+"""
 function edgereaction!(f, u, edge, data, ::Type{NonIsothermal}) 
     jouleHeating!(f, u, edge, data)
     thomsonPeltierHeating!(f, u, edge, data)
     return nothing
 end
 
+### Auxilliary functions for jouleHeating! ###
+
+ # Function calculates the Seebeck coefficient at the edge as in Kantner 2020, eq. (38a) 
+ # with the modification that every summand is multiplied with (TL-TK)
+ # TODO: add calculationType ScharfetterGummel or DiffusionEnhanced???
+function getSeebeckCoefficient(f, u, edge, data, icc)
+
+    iT = data.index_T
+
+    Ecc(T) = data.tempBEE1[icc]  # später über get_BEE!(icc, node, data) implementieren, aber noch nicht temperaturabhängig
+    Ncc(T; Nc0 = 1.0e26, T0 = 300.0) = Nc0 * (T / T0)^(3/2)  # DOS eigentlich über get_DOS, aber noch nicht temperaturabhängig
+    
+    (; q, k_B) = data.constants
+    g = 1 # diffusion enhancement factor, currently not implemented in getSeebeckCoefficient
+
+    Tk = u[iT, 1]  # temperature at node K
+    Tl =  u[iT, 2] # temperature at node L
+    T = logmean(Tk, Tl) # logmean temperature at edge
+
+    etak, etal = etaFunction!(u, edge, data, icc)
+   
+    P = - k_B / q * (log(Ncc(Tl) / Ncc(Tk)) * g * T - ((Tl - T) * etal - (Tk - T) * etak)  - 1/k_B * (Ecc(Tk) - Ecc(Tl)))
+    
+    return P
+
+end
+
+
+
+
 function jouleHeating!(f, u, edge, data)
     # TODO: Implement Joule heating term
+    iphin = data.bulkRecombination.iphin
+    iphip = data.bulkRecombination.iphip
+    Pn = getSeebeckCoefficient(f, u, edge, data, iphin)
+    Pp = getSeebeckCoefficient(f, u, edge, data, iphip)
+
+
     return nothing
 end
 
