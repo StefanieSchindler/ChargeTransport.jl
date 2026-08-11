@@ -1362,9 +1362,9 @@ function compute_chargeCarrierFluxValue(u, edge, data, icc)
     bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * temperatureLogmean(u, data) * g))
     ncck, nccl = get_density!(u, edge, data, icc)
 
-    Jcc = - params.chargeNumbers[icc] * q * j0 * (bm * nccl - bp * ncck)
+    Jcc =  params.chargeNumbers[icc] * q * j0 * (bm * nccl - bp * ncck) # sign correct?
 
-    return Jcc
+    return  Jcc
 end
 
 
@@ -1389,7 +1389,8 @@ function jouleHeating!(f, u, edge, data)
 
     # following Kantner 2020, eq. (27a) with the modification that every summand of Seebeck coefficient is multiplied with (TL-TK)
     f[iT] = f[iT] - Jn * ((u[iphin, 2] - u[iphin, 1]) + Pn) - Jp * ((u[iphip, 2] - u[iphip, 1]) + Pp)
-
+   # f[iT] = f[iT] - Jn^2 / (data.params.mobility[iphin, edge.region] * data.params.densityOfStates[iphin, edge.region])             
+              - Jp^2 / (data.params.mobility[iphip, edge.region] * data.params.densityOfStates[iphip, edge.region])
     return nothing
 end
 
