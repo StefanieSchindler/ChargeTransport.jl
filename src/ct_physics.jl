@@ -1274,7 +1274,6 @@ end
 $(TYPEDSIGNATURES)
 
 Master edgereaction! function that enters VoronoiFVM. It dispatches on the temperature model. 
-#TODO: add calculationType?!
 """
 edgereaction!(f, u, edge, data) = edgereaction!(f, u, edge, data, data.temperatureModel)
 
@@ -1293,41 +1292,103 @@ end
 
 ### Auxilliary functions for jouleHeating! ###
 
- # Function calculates the Seebeck coefficient at the edge as in Kantner 2020, eq. (38a) 
- # with the modification that every summand is multiplied with (TL-TK)
+ # Function calculates the Seebeck coefficient at the edge as in Kantner 2020, eq. (38a) with the modification that every summand is multiplied with (TL-TK)
  # TODO: add calculationType ScharfetterGummel or DiffusionEnhanced???
-function getSeebeckCoefficient(f, u, edge, data, icc)
+function get_SeebeckCoefficient(u, edge, data, icc)
 
     iT = data.index_T
-
-    Ecc(T) = data.tempBEE1[icc]  # später über get_BEE!(icc, node, data) implementieren, aber noch nicht temperaturabhängig
-    Ncc(T; Nc0 = 1.0e26, T0 = 300.0) = Nc0 * (T / T0)^(3/2)  # DOS eigentlich über get_DOS, aber noch nicht temperaturabhängig
-    
-    (; q, k_B) = data.constants
-    g = 1 # diffusion enhancement factor, currently not implemented in getSeebeckCoefficient
-
     Tk = u[iT, 1]  # temperature at node K
     Tl =  u[iT, 2] # temperature at node L
     T = logmean(Tk, Tl) # logmean temperature at edge
 
-    etak, etal = etaFunction!(u, edge, data, icc)
-   
-    P = - k_B / q * (log(Ncc(Tl) / Ncc(Tk)) * g * T - ((Tl - T) * etal - (Tk - T) * etak)  - 1/k_B * (Ecc(Tk) - Ecc(Tl)))
-    
-    return P
+    ireg = edge.region
 
+    # Steffi: Später temperaturabhängig machen.
+    Ecc(T) = data.params.bandEdgeEnergy[icc, ireg]  # später über get_BEE!(icc, node, data) implementieren, aber noch nicht temperaturabhängig
+    Ncc(T) = data.params.densityOfStates[icc, ireg]
+    
+    (; q, k_B) = data.constants
+
+    etak, etal = etaFunction!(u, edge, data, icc)
+
+    #=
+    if (log(data.F[icc](etal)) - log(data.F[icc](etak))) ≈ 0.0 # regularization idea coming from Pietra-Jüngel scheme
+        gk = exp(etak) / data.F[icc](etak)
+        gl = exp(etal) / data.F[icc](etal)
+        g = 0.5 * (gk + gl)
+    else
+        g = (etal - etak) / (log(data.F[icc](etal)) - log(data.F[icc](etak)))
+    end
+    =#
+    g = 1.0
+
+    Pcc = - k_B / q * (log(Ncc(Tl) / Ncc(Tk)) * g * T - ((Tl - T) * etal - (Tk - T) * etak)  - 1/k_B * (Ecc(Tk) - Ecc(Tl)))
+    
+    return Pcc
+
+end
+
+# Steffi: Müsste eigentlich DiffusionEnhanced sein. 
+function compute_chargeCarrierFluxValue(u, edge, data, icc)
+    params = data.params
+    paramsnodal = data.paramsnodal
+
+    icc = data.chargeCarrierList[icc]
+    ipsi = data.index_psi
+    nodek = edge.node[1]   # left node
+    nodel = edge.node[2]   # right node
+    ireg = edge.region
+    (; k_B, q) = data.constants
+
+    dpsi = u[ipsi, 2] - u[ipsi, 1]
+    bandEdgeDiff = paramsnodal.bandEdgeEnergy[icc, nodel] - paramsnodal.bandEdgeEnergy[icc, nodek]
+   
+    etak, etal = etaFunction!(u, edge, data, icc) # calls etaFunction!(u, edge::VoronoiFVM.Edge, data, icc)
+
+#=
+    if (log(data.F[icc](etal)) - log(data.F[icc](etak))) ≈ 0.0 # regularization idea coming from Pietra-Jüngel scheme
+        gk = exp(etak) / data.F[icc](etak)
+        gl = exp(etal) / data.F[icc](etal)
+        g = 0.5 * (gk + gl)
+    else
+        g = (etal - etak) / (log(data.F[icc](etal)) - log(data.F[icc](etak)))
+    end
+=#
+    g = 1.0
+   
+
+    j0 = (k_B * temperatureLogmean(u, data) / q) * params.mobility[icc, ireg] * g
+
+    bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * temperatureLogmean(u, data) * g))
+    ncck, nccl = get_density!(u, edge, data, icc)
+
+    Jcc = - params.chargeNumbers[icc] * q * j0 * (bm * nccl - bp * ncck)
+
+    return Jcc
 end
 
 
 
 
 function jouleHeating!(f, u, edge, data)
-    # TODO: Implement Joule heating term
+
+    iT = data.index_T
+    T = temperatureLogmean(u, data) # logmean temperature at edge
+
     iphin = data.bulkRecombination.iphin
     iphip = data.bulkRecombination.iphip
-    Pn = getSeebeckCoefficient(f, u, edge, data, iphin)
-    Pp = getSeebeckCoefficient(f, u, edge, data, iphip)
 
+    iphin = data.chargeCarrierList[iphin]
+    iphip = data.chargeCarrierList[iphip]
+
+    Pn = get_SeebeckCoefficient(u, edge, data, iphin)
+    Pp = get_SeebeckCoefficient(u, edge, data, iphip)
+
+    Jn = compute_chargeCarrierFluxValue(u, edge, data, iphin)
+    Jp = compute_chargeCarrierFluxValue(u, edge, data, iphip)
+
+    # following Kantner 2020, eq. (27a) with the modification that every summand of Seebeck coefficient is multiplied with (TL-TK)
+    f[iT] = f[iT] - Jn * ((u[iphin, 2] - u[iphin, 1]) + Pn) - Jp * ((u[iphip, 2] - u[iphip, 1]) + Pp)
 
     return nothing
 end
@@ -1502,7 +1563,6 @@ function chargeCarrierFlux!(f, u, edge, data, icc, ::Type{ExcessChemicalPotentia
     ireg = edge.region
     (; k_B, q) = data.constants
 
-    #Steffi: temperatureLogmean statt params.temperature
     j0 = (k_B * temperatureLogmean(u, data) / q) * params.mobility[icc, ireg]
 
     dpsi = u[ipsi, 2] - u[ipsi, 1]
@@ -1521,24 +1581,6 @@ function chargeCarrierFlux!(f, u, edge, data, icc, ::Type{ExcessChemicalPotentia
 
 end
 
-#Steffi  
-# Master function for heat flux on edges
-function heatFlux!(f, u, edge, data)
-    return heatFlux!(f, u, edge, data, data.temperatureModel)
-end
-
-# Isothermal case: no heat flux
-function heatFlux!(f, u, edge, data, ::Type{Isothermal})
-    return nothing
-end
-
-# Non-isothermal case: compute heat flux
-function heatFlux!(f, u, edge, data, ::Type{NonIsothermal})
-    iT = data.index_T
-    params = data.params
-    f[iT] = - params.thermalConductivity * (u[iT, 2] - u[iT, 1])
-    return nothing
-end
 
 
 # Reconstructing the concentration gradients
@@ -1778,6 +1820,33 @@ function chargeCarrierFlux!(f, u, edge, data, icc, ::Type{GeneralizedSG})
     return
 
 end
+
+ 
+##############################################################
+##############################################################
+
+"""
+$(TYPEDSIGNATURES)
+
+Master function for heat flux on edges. It dispatches on the temperature model.
+"""
+function heatFlux!(f, u, edge, data)
+    return heatFlux!(f, u, edge, data, data.temperatureModel)
+end
+
+# Isothermal case: no heat flux
+function heatFlux!(f, u, edge, data, ::Type{Isothermal})
+    return nothing
+end
+
+# Non-isothermal case: compute heat flux
+function heatFlux!(f, u, edge, data, ::Type{NonIsothermal})
+    iT = data.index_T
+    params = data.params
+    f[iT] = - params.thermalConductivity * (u[iT, 2] - u[iT, 1])
+    return nothing
+end
+
 
 # ##########################################################
 # recombination kernels for calculating recombination currents

@@ -111,7 +111,6 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     iphip = 2 # hole quasi Fermi potential
     numberOfCarriers = 2
 
-    
 
     # We define the physical data.
     Ec = 1.424 * eV
@@ -160,6 +159,8 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     ## Following variable declares, if we want to solve isothermal or non-isothermal problem
     data.temperatureModel = NonIsothermal
 
+
+
     ## Here, we need to specify which numbers are associated with electron and hole quasi
     ## Fermi potential. Further, the desired recombination processes can be chosen here.
     data.bulkRecombination = set_bulk_recombination(;
@@ -168,6 +169,10 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
         bulk_recomb_radiative = true,
         bulk_recomb_SRH = true
     )
+
+    # Steffi: set flux approximation to ScharfetterGummel to test the non-isothermal model and jouleHeating
+    data.fluxApproximation[iphin] = ScharfetterGummel # DiffusionEnhanced #
+    data.fluxApproximation[iphip] = ScharfetterGummel # DiffusionEnhanced
 
     ## Following choices are possible for boundary model: For contacts currently only
     ## OhmicContact and SchottkyContact are possible. For inner boundaries we have
@@ -199,7 +204,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     params.heatCapacity = 2.0e6 * J / (K * m^3) #Welcher Wert?
 
     #params.heatSource = (node, data) -> 0.0
-    
+
     #= Steffi: Gaussian heat source term
     params.heatSource = (node, data) -> begin
         x = node.coord[1]
@@ -208,6 +213,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     =#
 
     # Region-dependent (only in region 3)
+    #=
     data.params.heatSource = (node, data) -> begin
       if node.region == 2
         return 5.0e8
@@ -215,9 +221,10 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
         return 0.0
       end
     end
+    =#
 
     params.boundaryTemperature[bregionAcceptor] = 300.0 * K
-    params.boundaryTemperature[bregionDonor]    = 330.0 * K
+    params.boundaryTemperature[bregionDonor]    = 310.0 * K
 
     for ireg in 1:numberOfRegions # region data
 
@@ -291,12 +298,12 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
 
     control = SolverControl()
     control.verbose = verbose
-    control.maxiters = 50
-    control.abstol = 1.0e-14
-    control.reltol = 1.0e-14
-    control.tol_round = 1.0e-8
-    control.damp_initial = 0.5
-    control.max_round = 3
+    control.maxiters = 100 # 50
+    control.abstol = 1.0e-12 # 1.0e-14
+    control.reltol = 1.0e-12 #1.0e-14
+    control.tol_round = 1.0e-6 #1.0e-8
+    control.damp_initial = 0.1 #0.5
+    control.max_round = 5 # 3
 
     if test == false
         println("*** done\n")
@@ -317,7 +324,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
         inival_eq[data.index_T, :] .= T
     end
 
-    solution = equilibrium_solve!(ctsys, inival = inival_eq, control = control)
+    solution = equilibrium_solve!(ctsys, inival = inival_eq, control = control, nonlinear_steps = 30.0)
     inival = solution
 
     
@@ -373,6 +380,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
 
         reveal(vis)
     end
+
 
     testval = solution[15]
     return testval
