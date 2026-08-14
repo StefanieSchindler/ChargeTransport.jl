@@ -170,9 +170,9 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
         bulk_recomb_SRH = true
     )
 
-    # Steffi: set flux approximation to ScharfetterGummel to test the non-isothermal model and jouleHeating
-    data.fluxApproximation[iphin] = ScharfetterGummel # DiffusionEnhanced #
-    data.fluxApproximation[iphip] = ScharfetterGummel # DiffusionEnhanced
+    # Steffi: set flux approximation to test the non-isothermal model and jouleHeating
+    data.fluxApproximation[iphin] = ScharfetterGummel # DiffusionEnhanced # 
+    data.fluxApproximation[iphip] = ScharfetterGummel # DiffusionEnhanced #
 
     ## Following choices are possible for boundary model: For contacts currently only
     ## OhmicContact and SchottkyContact are possible. For inner boundaries we have
@@ -212,7 +212,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     end
     =#
 
-    # Region-dependent (only in region 3)
+    # Region-dependent
     #=
     data.params.heatSource = (node, data) -> begin
       if node.region == 2
@@ -225,6 +225,9 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
 
     params.boundaryTemperature[bregionAcceptor] = 300.0 * K
     params.boundaryTemperature[bregionDonor]    = 310.0 * K
+
+    T_left = params.boundaryTemperature[bregionAcceptor]
+    T_right = params.boundaryTemperature[bregionDonor]
 
     for ireg in 1:numberOfRegions # region data
 
@@ -320,8 +323,10 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     inival_eq .= 0.0
     inival_eq[data.index_psi, :] .=  0.0 # random initial guess for electric potential  
     # Temperature initial guess
-    if data.temperatureModel == NonIsothermal
-        inival_eq[data.index_T, :] .= T
+    if data.temperatureModel == NonIsothermal && (data.boundaryType[bregionAcceptor] == OhmicContact && data.boundaryType[bregionDonor] == OhmicContact)
+        inival_eq[data.index_T, :] = T_left .+ (T_right - T_left) .* coord ./ h_total # linear initial guess for temperature
+    else 
+        inival_eq[data.index_T, :] .= T # constant initial guess for temperature
     end
 
     solution = equilibrium_solve!(ctsys, inival = inival_eq, control = control, nonlinear_steps = 30.0)

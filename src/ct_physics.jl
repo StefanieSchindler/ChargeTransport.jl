@@ -1286,15 +1286,16 @@ In the non-isothermal case, it calls the jouleHeating! and thomsonPeltierHeating
 """
 function edgereaction!(f, u, edge, data, ::Type{NonIsothermal}) 
     jouleHeating!(f, u, edge, data)
-    thomsonPeltierHeating!(f, u, edge, data)
+  #  thomsonPeltierHeating!(f, u, edge, data)
     return nothing
 end
 
-### Auxilliary functions for jouleHeating! ###
+### Auxilliary functions for jouleHeating! and thomsonPeltierHeating! ###
 
  # Function calculates the Seebeck coefficient at the edge as in Kantner 2020, eq. (38a) with the modification that every summand is multiplied with (TL-TK)
- # TODO: add calculationType ScharfetterGummel or DiffusionEnhanced???
-function get_SeebeckCoefficient(u, edge, data, icc)
+get_SeebeckCoefficient(u, edge, data, icc) = get_SeebeckCoefficient(u, edge, data, icc, data.fluxApproximation[icc])
+
+function get_SeebeckCoefficient(u, edge, data, icc, ::Type{ScharfetterGummel})
 
     iT = data.index_T
     Tk = u[iT, 1]  # temperature at node K
@@ -1311,7 +1312,29 @@ function get_SeebeckCoefficient(u, edge, data, icc)
 
     etak, etal = etaFunction!(u, edge, data, icc)
 
-    #=
+    Pcc = - k_B / q * (log(Ncc(Tl) / Ncc(Tk)) * T - ((Tl - T) * etal - (Tk - T) * etak)  - 1/k_B * (Ecc(Tk) - Ecc(Tl)))
+    
+    return Pcc
+
+end
+
+function get_SeebeckCoefficient(u, edge, data, icc, ::Type{DiffusionEnhanced})
+
+    iT = data.index_T
+    Tk = u[iT, 1]  # temperature at node K
+    Tl =  u[iT, 2] # temperature at node L
+    T = logmean(Tk, Tl) # logmean temperature at edge
+
+    ireg = edge.region
+
+    # Steffi: Später temperaturabhängig machen.
+    Ecc(T) = data.params.bandEdgeEnergy[icc, ireg]  # später über get_BEE!(icc, node, data) implementieren, aber noch nicht temperaturabhängig
+    Ncc(T) = data.params.densityOfStates[icc, ireg]
+    
+    (; q, k_B) = data.constants
+
+    etak, etal = etaFunction!(u, edge, data, icc)
+
     if (log(data.F[icc](etal)) - log(data.F[icc](etak))) ≈ 0.0 # regularization idea coming from Pietra-Jüngel scheme
         gk = exp(etak) / data.F[icc](etak)
         gl = exp(etal) / data.F[icc](etal)
@@ -1319,17 +1342,51 @@ function get_SeebeckCoefficient(u, edge, data, icc)
     else
         g = (etal - etak) / (log(data.F[icc](etal)) - log(data.F[icc](etak)))
     end
-    =#
-    g = 1.0
 
     Pcc = - k_B / q * (log(Ncc(Tl) / Ncc(Tk)) * g * T - ((Tl - T) * etal - (Tk - T) * etak)  - 1/k_B * (Ecc(Tk) - Ecc(Tl)))
-    
-    return Pcc
 
+    return Pcc
 end
 
-# Steffi: Müsste eigentlich DiffusionEnhanced sein. 
-function compute_chargeCarrierFluxValue(u, edge, data, icc)
+#=
+# Function calculates the Seebeck coefficient at the node as in Kantner 2020, eq (16)
+function get_SeebeckCoefficient(u, node, data, icc, ::Type{ScharfetterGummel})
+
+    return nothing
+end
+=#
+
+
+ compute_chargeCarrierFluxValue(u, edge, data, icc) = compute_chargeCarrierFluxValue(u, edge, data, icc, data.fluxApproximation[icc])
+
+ function compute_chargeCarrierFluxValue(u, edge, data, icc, ::Type{ScharfetterGummel})
+    
+    params = data.params
+    paramsnodal = data.paramsnodal
+
+    icc = data.chargeCarrierList[icc]
+    ipsi = data.index_psi
+    nodek = edge.node[1]   # left node
+    nodel = edge.node[2]   # right node
+    ireg = edge.region
+    (; k_B, q) = data.constants
+
+    dpsi = u[ipsi, 2] - u[ipsi, 1]
+    bandEdgeDiff = paramsnodal.bandEdgeEnergy[icc, nodel] - paramsnodal.bandEdgeEnergy[icc, nodek]
+   
+    j0 = (k_B * temperatureLogmean(u, data) / q) * params.mobility[icc, ireg] 
+
+    # In Kantner 2020, it is without bandEdgeDiff.
+    bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * temperatureLogmean(u, data)))
+    ncck, nccl = get_density!(u, edge, data, icc)
+
+    Jcc =  params.chargeNumbers[icc] * q * j0 * (bm * nccl - bp * ncck) # sign correct?
+
+    return  Jcc
+end
+
+# The following (and DiffusionEnhanced in general) is not running! Also in isothermal case, it is not running.
+function compute_chargeCarrierFluxValue(u, edge, data, icc, ::Type{DiffusionEnhanced})
     params = data.params
     paramsnodal = data.paramsnodal
 
@@ -1345,7 +1402,7 @@ function compute_chargeCarrierFluxValue(u, edge, data, icc)
    
     etak, etal = etaFunction!(u, edge, data, icc) # calls etaFunction!(u, edge::VoronoiFVM.Edge, data, icc)
 
-#=
+
     if (log(data.F[icc](etal)) - log(data.F[icc](etak))) ≈ 0.0 # regularization idea coming from Pietra-Jüngel scheme
         gk = exp(etak) / data.F[icc](etak)
         gl = exp(etal) / data.F[icc](etal)
@@ -1353,12 +1410,10 @@ function compute_chargeCarrierFluxValue(u, edge, data, icc)
     else
         g = (etal - etak) / (log(data.F[icc](etal)) - log(data.F[icc](etak)))
     end
-=#
-    g = 1.0
-   
-
+    
     j0 = (k_B * temperatureLogmean(u, data) / q) * params.mobility[icc, ireg] * g
 
+    # In Kantner 2020, it is without bandEdgeDiff. In DiffusionEnhanced, it is with bandEdgeDiff.
     bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * temperatureLogmean(u, data) * g))
     ncck, nccl = get_density!(u, edge, data, icc)
 
@@ -1371,9 +1426,7 @@ end
 
 
 function jouleHeating!(f, u, edge, data)
-
     iT = data.index_T
-    T = temperatureLogmean(u, data) # logmean temperature at edge
 
     iphin = data.bulkRecombination.iphin
     iphip = data.bulkRecombination.iphip
@@ -1381,23 +1434,45 @@ function jouleHeating!(f, u, edge, data)
     iphin = data.chargeCarrierList[iphin]
     iphip = data.chargeCarrierList[iphip]
 
-    Pn = get_SeebeckCoefficient(u, edge, data, iphin)
-    Pp = get_SeebeckCoefficient(u, edge, data, iphip)
+    Pn = get_SeebeckCoefficient(u, edge, data, iphin, data.fluxApproximation[iphin])
+    Pp = get_SeebeckCoefficient(u, edge, data, iphip, data.fluxApproximation[iphip])
 
-    Jn = compute_chargeCarrierFluxValue(u, edge, data, iphin)
-    Jp = compute_chargeCarrierFluxValue(u, edge, data, iphip)
+    Jn = compute_chargeCarrierFluxValue(u, edge, data, iphin, data.fluxApproximation[iphin])
+    Jp = compute_chargeCarrierFluxValue(u, edge, data, iphip, data.fluxApproximation[iphip])
+
 
     # following Kantner 2020, eq. (27a) with the modification that every summand of Seebeck coefficient is multiplied with (TL-TK)
     f[iT] = f[iT] - Jn * ((u[iphin, 2] - u[iphin, 1]) + Pn) - Jp * ((u[iphip, 2] - u[iphip, 1]) + Pp)
-   # f[iT] = f[iT] - Jn^2 / (data.params.mobility[iphin, edge.region] * data.params.densityOfStates[iphin, edge.region])             
-              - Jp^2 / (data.params.mobility[iphip, edge.region] * data.params.densityOfStates[iphip, edge.region])
-    return nothing
+   
+   return nothing
 end
 
+#=
 function thomsonPeltierHeating!(f, u, edge, data)
-    # TODO: Implement Thomson-Peltier heating term
+    iT = data.index_T
+    T = temperatureLogmean(u, data)
+
+    iphin = data.bulkRecombination.iphin
+    iphip = data.bulkRecombination.iphip
+
+    iphin = data.chargeCarrierList[iphin]
+    iphip = data.chargeCarrierList[iphip]
+
+    Jn = compute_chargeCarrierFluxValue(u, edge, data, iphin, data.fluxApproximation[iphin])
+    Jp = compute_chargeCarrierFluxValue(u, edge, data, iphip, data.fluxApproximation[iphip])
+
+    nodek = edge.node[1]   # left node
+    nodel = edge.node[2]   # right node
+
+    Pnk = get_SeebeckCoefficient(u, nodek, data, iphin, data.fluxApproximation[iphin])
+    Pnl = get_SeebeckCoefficient(u, nodel, data, iphin, data.fluxApproximation[iphin])
+    Ppk = get_SeebeckCoefficient(u, nodek, data, iphip, data.fluxApproximation[iphip])
+    Ppl = get_SeebeckCoefficient(u, nodel, data, iphip, data.fluxApproximation[iphip])
+
+    f[iT] = f[iT] - T * Jn * (Pnl - Pnk) - T * Jp * (Ppl - Ppk)
     return nothing
 end
+=#
 
 ##########################################################
 ##########################################################
@@ -1528,12 +1603,10 @@ function chargeCarrierFlux!(f, u, edge, data, icc, ::Type{ScharfetterGummelGrade
     ireg = edge.region
     (; k_B, q) = data.constants
 
-    #Steffi: temperatureLogmean statt params.temperature
     mobility = params.mobility[icc, ireg] + (paramsnodal.mobility[icc, nodel] + paramsnodal.mobility[icc, nodek]) / 2
     j0 = (k_B * temperatureLogmean(u, data) / q) * mobility
 
     dpsi = u[ipsi, 2] - u[ipsi, 1]
-    #Steffi: bei Kantner2020 ist bandEdgeDiff nicht im Argument der Bernoulli-Funktion
     bandEdgeDiff = paramsnodal.bandEdgeEnergy[icc, nodel] - paramsnodal.bandEdgeEnergy[icc, nodek]
 
     if paramsnodal.densityOfStates[icc, nodel] ≈ 0.0 || paramsnodal.densityOfStates[icc, nodek] ≈ 0.0
@@ -1706,6 +1779,7 @@ function chargeCarrierFlux!(f, u, edge, data, icc, ::Type{DiffusionEnhanced})
 
     j0 = (k_B * temperatureLogmean(u, data) / q) * params.mobility[icc, ireg] * g
 
+
     bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * temperatureLogmean(u, data) * g))
     ncck, nccl = get_density!(u, edge, data, icc)
 
@@ -1743,7 +1817,6 @@ function chargeCarrierFlux!(f, u, edge, data, icc, ::Type{DiffusionEnhancedModif
         g = (etal - etak) / (log(data.F[icc](etal)) - log(data.F[icc](etak)))
     end
 
-    # Steffi: temperatureLogmean statt params.temperature
     j0 = (k_B * temperatureLogmean(u, data) / q) * params.mobility[icc, ireg]
 
     bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * temperatureLogmean(u, data) * g))

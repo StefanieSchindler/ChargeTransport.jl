@@ -326,7 +326,6 @@ function main(; n = 2, Plotter = nothing, verbose = false, test = false, unknown
     ## ExcessChemicalPotential, ExcessChemicalPotentialGraded, DiffusionEnhanced, GeneralizedSG
     ## Default is ExcessChemicalPotential. Here, we need a graded variant
     data.fluxApproximation .= ScharfetterGummelGraded
-
     ################################################################################
     if test == false
         println("Define Params and fill in physical parameters")

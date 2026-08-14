@@ -646,8 +646,8 @@ function Params(numberOfRegions, numberOfBoundaryRegions, numberOfCarriers)
     params.r0 = 0.0                 # r0 prefactor electro-chemical reaction
     params.prefactor_SRH = 1.0
     params.generationPeak = 0.0     # parameter which shifts Beer-Lambert generation peak
-    params.thermalConductivity = 130.0 * W /(m * K) #Steffi: Hier der richtige Ort? Welcher Wert?
-    params.heatCapacity = 1.6e6 * J / (m^3 * K) #Steffi: Hier der richtige Ort? Welcher Wert?
+    params.thermalConductivity = 0.0
+    params.heatCapacity = 0.0
 
     ###############################################################
     ####              number of boundary regions               ####
@@ -1404,6 +1404,19 @@ function build_system(grid, data, ::Type{ContQF}; kwargs...)
             data.params.recombinationSRHLifetime[1, ireg] = 1.0
         end
     end
+
+    #################################################################################
+    #####        Validate thermal parameters for non-isothermal simulations     #####
+    if data.temperatureModel == NonIsothermal
+        if data.params.thermalConductivity <= 0 || data.params.heatCapacity <= 0
+            error("For non-isothermal simulations, params.thermalConductivity and 
+                   params.heatCapacity must be explicitly set to positive values.
+                   Please set these in your example script, e.g.:
+                   params.thermalConductivity = 45.0  # W/(m·K) for GaAs
+                   params.heatCapacity = 2.0e6        # J/(m³·K) for GaAs")
+        end
+    end
+
 
     #################################################################################
     #####    Check, if Schottky barrier lowering conditions applicable or not   #####
