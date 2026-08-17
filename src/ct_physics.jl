@@ -1385,7 +1385,7 @@ end
     return  Jcc
 end
 
-# The following (and DiffusionEnhanced in general) is not running! Also in isothermal case, it is not running.
+# The following (and DiffusionEnhanced in general) is not running! Also in the isothermal case, it is not running.
 function compute_chargeCarrierFluxValue(u, edge, data, icc, ::Type{DiffusionEnhanced})
     params = data.params
     paramsnodal = data.paramsnodal
@@ -1417,7 +1417,7 @@ function compute_chargeCarrierFluxValue(u, edge, data, icc, ::Type{DiffusionEnha
     bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * temperatureLogmean(u, data) * g))
     ncck, nccl = get_density!(u, edge, data, icc)
 
-    Jcc =  params.chargeNumbers[icc] * q * j0 * (bm * nccl - bp * ncck) # sign correct?
+    Jcc =  params.chargeNumbers[icc] * q * j0 * (bm * nccl - bp * ncck)
 
     return  Jcc
 end
@@ -1451,7 +1451,7 @@ end
 function thomsonPeltierHeating!(f, u, edge, data)
     iT = data.index_T
     T = temperatureLogmean(u, data)
-
+ 
     iphin = data.bulkRecombination.iphin
     iphip = data.bulkRecombination.iphip
 
@@ -1533,7 +1533,7 @@ end
 function flux!(f, u, edge, data, ::Type{InEquilibrium})
     ## discretization of the displacement flux (LHS of Poisson equation)
     displacementFlux!(f, u, edge, data)
-    #Steffi
+
     heatFlux!(f, u, edge, data)
     return
 end
@@ -1552,7 +1552,6 @@ function flux!(f, u, edge, data, ::Type{OutOfEquilibrium})
         chargeCarrierFlux!(f, u, edge, data, icc, data.fluxApproximation[icc])
     end
 
-    #Steffi
     heatFlux!(f, u, edge, data)
     
 
@@ -1904,9 +1903,8 @@ $(TYPEDSIGNATURES)
 
 Master function for heat flux on edges. It dispatches on the temperature model.
 """
-function heatFlux!(f, u, edge, data)
-    return heatFlux!(f, u, edge, data, data.temperatureModel)
-end
+heatFlux!(f, u, edge, data) = heatFlux!(f, u, edge, data, data.temperatureModel)
+
 
 # Isothermal case: no heat flux
 function heatFlux!(f, u, edge, data, ::Type{Isothermal})
