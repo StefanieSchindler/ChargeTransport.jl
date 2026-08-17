@@ -433,6 +433,7 @@ mutable struct Params
     """
     boundaryTemperature::Array{Float64, 1}
 
+
     ###############################################################
     ####                  number of carriers                   ####
     ###############################################################
@@ -659,7 +660,7 @@ function Params(numberOfRegions, numberOfBoundaryRegions, numberOfCarriers)
     params.thicknessOxideGate = zeros(Float64, numberOfBoundaryRegions)
     params.surfaceChargeDensityGate = zeros(Float64, numberOfBoundaryRegions)
     params.boundaryTemperature = ones(Float64, numberOfBoundaryRegions) #Steffi
-    params.boundaryTemperature .= 300.0 * K #Steffi: Default value for boundary temperature
+   # params.boundaryTemperature .= 300.0 * K #Steffi: Default value for boundary temperature
 
     ###############################################################
     ####                  number of carriers                   ####

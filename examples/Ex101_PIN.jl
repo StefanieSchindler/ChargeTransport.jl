@@ -162,6 +162,9 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
         bulk_recomb_SRH = true
     )
 
+    # data.fluxApproximation[iphin] = DiffusionEnhanced # ScharfetterGummel #
+    # data.fluxApproximation[iphip] = DiffusionEnhanced # ScharfetterGummel # 
+
     ## Following choices are possible for boundary model: For contacts currently only
     ## OhmicContact and SchottkyContact are possible. For inner boundaries we have
     ## InterfaceNone, InterfaceRecombination.

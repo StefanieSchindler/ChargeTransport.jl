@@ -63,7 +63,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     bregionJunction2 = 4
 
     ## grid
-    refinementfactor = 2^(n - 1)
+    refinementfactor = 2^(n - 1) #2^4 # 2^5
     h_pdoping = 2.0 * μm
     h_intrinsic = 2.0 * μm
     h_ndoping = 2.0 * μm
@@ -171,8 +171,8 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     )
 
     # Steffi: set flux approximation to test the non-isothermal model and jouleHeating
-    data.fluxApproximation[iphin] = ScharfetterGummel # DiffusionEnhanced # 
-    data.fluxApproximation[iphip] = ScharfetterGummel # DiffusionEnhanced #
+    data.fluxApproximation[iphin] = DiffusionEnhanced # ScharfetterGummel #  
+    data.fluxApproximation[iphip] = DiffusionEnhanced # ScharfetterGummel # 
 
     ## Following choices are possible for boundary model: For contacts currently only
     ## OhmicContact and SchottkyContact are possible. For inner boundaries we have
@@ -225,6 +225,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
 
     params.boundaryTemperature[bregionAcceptor] = 300.0 * K
     params.boundaryTemperature[bregionDonor]    = 310.0 * K
+
 
     T_left = params.boundaryTemperature[bregionAcceptor]
     T_right = params.boundaryTemperature[bregionDonor]

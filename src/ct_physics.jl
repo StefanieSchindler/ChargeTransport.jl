@@ -477,12 +477,11 @@ function breaction!(f, u, bnode, data, ::Type{OhmicContactRobin})
     boundary_dirichlet!(f, u, bnode, species = iphip, region = bnode.region, value = Δu)
 
     #Steffi
-  #  println("boundary_dirichlet! for temperature", data.index_T, data.params.boundaryTemperature[bnode.region])
     if data.temperatureModel == NonIsothermal
         boundary_dirichlet!(f, u, bnode,
           species = data.index_T,
           region  = bnode.region,
-          value   = data.params.boundaryTemperature[bnode.region])
+          value   = params.boundaryTemperature[bnode.region])
     end
     return
 
@@ -531,6 +530,7 @@ function breaction!(f, u, bnode, data, ::Type{OhmicContactDirichlet})
             region  = bnode.region,
             value   = data.params.boundaryTemperature[bnode.region])
     end
+ 
     return
 
 end
@@ -1292,7 +1292,7 @@ end
 
 ### Auxilliary functions for jouleHeating! and thomsonPeltierHeating! ###
 
- # Function calculates the Seebeck coefficient at the edge as in Kantner 2020, eq. (38a) with the modification that every summand is multiplied with (TL-TK)
+ # Function calculates the Seebeck coefficient at the edge as in Kantner 2020, eq. (38a) with the modification that every summand is multiplied with (Tl-Tk)
 get_SeebeckCoefficient(u, edge, data, icc) = get_SeebeckCoefficient(u, edge, data, icc, data.fluxApproximation[icc])
 
 function get_SeebeckCoefficient(u, edge, data, icc, ::Type{ScharfetterGummel})
@@ -1312,9 +1312,10 @@ function get_SeebeckCoefficient(u, edge, data, icc, ::Type{ScharfetterGummel})
 
     etak, etal = etaFunction!(u, edge, data, icc)
 
-    Pcc = - k_B / q * (log(Ncc(Tl) / Ncc(Tk)) * T - ((Tl - T) * etal - (Tk - T) * etak)  - 1/k_B * (Ecc(Tk) - Ecc(Tl)))
+    # Seebeck coefficient at edge times (Tl - Tk)
+    PccΔT = - k_B / q * (log(Ncc(Tl) / Ncc(Tk)) * T - ((Tl - T) * etal - (Tk - T) * etak)  - 1/k_B * (Ecc(Tk) - Ecc(Tl)))
     
-    return Pcc
+    return PccΔT
 
 end
 
@@ -1335,17 +1336,17 @@ function get_SeebeckCoefficient(u, edge, data, icc, ::Type{DiffusionEnhanced})
 
     etak, etal = etaFunction!(u, edge, data, icc)
 
-    if (log(data.F[icc](etal)) - log(data.F[icc](etak))) ≈ 0.0 # regularization idea coming from Pietra-Jüngel scheme
+    if isapprox(log(data.F[icc](etal)) - log(data.F[icc](etak)), 0.0, atol = 1e-5) # regularization idea coming from Pietra-Jüngel scheme
         gk = exp(etak) / data.F[icc](etak)
         gl = exp(etal) / data.F[icc](etal)
         g = 0.5 * (gk + gl)
     else
         g = (etal - etak) / (log(data.F[icc](etal)) - log(data.F[icc](etak)))
     end
+    # Seebeck coefficient at edge times (Tl - Tk)
+    PccΔT  = - k_B / q * (log(Ncc(Tl) / Ncc(Tk)) * g * T - ((Tl - T) * etal - (Tk - T) * etak)  - 1/k_B * (Ecc(Tk) - Ecc(Tl)))
 
-    Pcc = - k_B / q * (log(Ncc(Tl) / Ncc(Tk)) * g * T - ((Tl - T) * etal - (Tk - T) * etak)  - 1/k_B * (Ecc(Tk) - Ecc(Tl)))
-
-    return Pcc
+    return PccΔT
 end
 
 #=
@@ -1370,14 +1371,14 @@ end
     nodel = edge.node[2]   # right node
     ireg = edge.region
     (; k_B, q) = data.constants
+    T = temperatureLogmean(u, data)
 
     dpsi = u[ipsi, 2] - u[ipsi, 1]
     bandEdgeDiff = paramsnodal.bandEdgeEnergy[icc, nodel] - paramsnodal.bandEdgeEnergy[icc, nodek]
    
-    j0 = (k_B * temperatureLogmean(u, data) / q) * params.mobility[icc, ireg] 
+    j0 = (k_B * T / q) * params.mobility[icc, ireg] 
 
-    # In Kantner 2020, it is without bandEdgeDiff.
-    bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * temperatureLogmean(u, data)))
+    bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * T))
     ncck, nccl = get_density!(u, edge, data, icc)
 
     Jcc =  params.chargeNumbers[icc] * q * j0 * (bm * nccl - bp * ncck) # sign correct?
@@ -1396,6 +1397,7 @@ function compute_chargeCarrierFluxValue(u, edge, data, icc, ::Type{DiffusionEnha
     nodel = edge.node[2]   # right node
     ireg = edge.region
     (; k_B, q) = data.constants
+    T = temperatureLogmean(u, data)
 
     dpsi = u[ipsi, 2] - u[ipsi, 1]
     bandEdgeDiff = paramsnodal.bandEdgeEnergy[icc, nodel] - paramsnodal.bandEdgeEnergy[icc, nodek]
@@ -1403,7 +1405,7 @@ function compute_chargeCarrierFluxValue(u, edge, data, icc, ::Type{DiffusionEnha
     etak, etal = etaFunction!(u, edge, data, icc) # calls etaFunction!(u, edge::VoronoiFVM.Edge, data, icc)
 
 
-    if (log(data.F[icc](etal)) - log(data.F[icc](etak))) ≈ 0.0 # regularization idea coming from Pietra-Jüngel scheme
+    if isapprox(log(data.F[icc](etal)) - log(data.F[icc](etak)), 0.0, atol = 1e-5) # regularization idea coming from Pietra-Jüngel scheme
         gk = exp(etak) / data.F[icc](etak)
         gl = exp(etal) / data.F[icc](etal)
         g = 0.5 * (gk + gl)
@@ -1411,10 +1413,9 @@ function compute_chargeCarrierFluxValue(u, edge, data, icc, ::Type{DiffusionEnha
         g = (etal - etak) / (log(data.F[icc](etal)) - log(data.F[icc](etak)))
     end
     
-    j0 = (k_B * temperatureLogmean(u, data) / q) * params.mobility[icc, ireg] * g
+    j0 = (k_B * T / q) * params.mobility[icc, ireg] * g
 
-    # In Kantner 2020, it is without bandEdgeDiff. In DiffusionEnhanced, it is with bandEdgeDiff.
-    bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * temperatureLogmean(u, data) * g))
+    bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * T * g))
     ncck, nccl = get_density!(u, edge, data, icc)
 
     Jcc =  params.chargeNumbers[icc] * q * j0 * (bm * nccl - bp * ncck)
@@ -1434,15 +1435,16 @@ function jouleHeating!(f, u, edge, data)
     iphin = data.chargeCarrierList[iphin]
     iphip = data.chargeCarrierList[iphip]
 
-    Pn = get_SeebeckCoefficient(u, edge, data, iphin, data.fluxApproximation[iphin])
-    Pp = get_SeebeckCoefficient(u, edge, data, iphip, data.fluxApproximation[iphip])
+    # returns the Seebeck coefficient times the temperature difference between the two nodes
+    PnΔT = get_SeebeckCoefficient(u, edge, data, iphin, data.fluxApproximation[iphin])
+    PpΔT = get_SeebeckCoefficient(u, edge, data, iphip, data.fluxApproximation[iphip])
 
     Jn = compute_chargeCarrierFluxValue(u, edge, data, iphin, data.fluxApproximation[iphin])
     Jp = compute_chargeCarrierFluxValue(u, edge, data, iphip, data.fluxApproximation[iphip])
 
 
     # following Kantner 2020, eq. (27a) with the modification that every summand of Seebeck coefficient is multiplied with (TL-TK)
-    f[iT] = f[iT] - Jn * ((u[iphin, 2] - u[iphin, 1]) + Pn) - Jp * ((u[iphip, 2] - u[iphip, 1]) + Pp)
+    f[iT] = f[iT] - Jn * ((u[iphin, 2] - u[iphin, 1]) + PnΔT) - Jp * ((u[iphip, 2] - u[iphip, 1]) + PpΔT)
    
    return nothing
 end
@@ -1572,13 +1574,14 @@ function chargeCarrierFlux!(f, u, edge, data, icc, ::Type{ScharfetterGummel})
     nodel = edge.node[2]   # right node
     ireg = edge.region
     (; q, k_B) = data.constants
+    T = temperatureLogmean(u, data)
 
-    j0 = k_B * temperatureLogmean(u, data) / q * params.mobility[icc, ireg]
+    j0 = k_B * T / q * params.mobility[icc, ireg]
 
     dpsi = u[ipsi, 2] - u[ipsi, 1]
     bandEdgeDiff = paramsnodal.bandEdgeEnergy[icc, nodel] - paramsnodal.bandEdgeEnergy[icc, nodek]
 
-    bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * temperatureLogmean(u, data)))
+    bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * T))
     ncck, nccl = get_density!(u, edge, data, icc)
 
     f[icc] = - params.chargeNumbers[icc] * q * j0 * (bm * nccl - bp * ncck)
@@ -1601,17 +1604,18 @@ function chargeCarrierFlux!(f, u, edge, data, icc, ::Type{ScharfetterGummelGrade
     nodel = edge.node[2]   # right node
     ireg = edge.region
     (; k_B, q) = data.constants
+    T = temperatureLogmean(u, data)
 
     mobility = params.mobility[icc, ireg] + (paramsnodal.mobility[icc, nodel] + paramsnodal.mobility[icc, nodek]) / 2
-    j0 = (k_B * temperatureLogmean(u, data) / q) * mobility
+    j0 = (k_B * T / q) * mobility
 
     dpsi = u[ipsi, 2] - u[ipsi, 1]
     bandEdgeDiff = paramsnodal.bandEdgeEnergy[icc, nodel] - paramsnodal.bandEdgeEnergy[icc, nodek]
 
     if paramsnodal.densityOfStates[icc, nodel] ≈ 0.0 || paramsnodal.densityOfStates[icc, nodek] ≈ 0.0
-        bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * temperatureLogmean(u, data)))
+        bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * T))
     else
-        bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * temperatureLogmean(u, data)) - (log(paramsnodal.densityOfStates[icc, nodel]) - log(paramsnodal.densityOfStates[icc, nodek])))
+        bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * T) - (log(paramsnodal.densityOfStates[icc, nodel]) - log(paramsnodal.densityOfStates[icc, nodek])))
     end
 
     ncck, nccl = get_density!(u, edge, data, icc)
@@ -1635,15 +1639,16 @@ function chargeCarrierFlux!(f, u, edge, data, icc, ::Type{ExcessChemicalPotentia
     nodel = edge.node[2]   # right node
     ireg = edge.region
     (; k_B, q) = data.constants
+    T = temperatureLogmean(u, data)
 
-    j0 = (k_B * temperatureLogmean(u, data) / q) * params.mobility[icc, ireg]
+    j0 = (k_B * T / q) * params.mobility[icc, ireg]
 
     dpsi = u[ipsi, 2] - u[ipsi, 1]
     bandEdgeDiff = paramsnodal.bandEdgeEnergy[icc, nodel] - paramsnodal.bandEdgeEnergy[icc, nodek]
 
     etak, etal = etaFunction!(u, edge, data, icc)
 
-    Q = params.chargeNumbers[icc] * ((dpsi * q - bandEdgeDiff) / (k_B * temperatureLogmean(u, data))) + (etal - etak) - log(data.F[icc](etal)) + log(data.F[icc](etak))
+    Q = params.chargeNumbers[icc] * ((dpsi * q - bandEdgeDiff) / (k_B * T)) + (etal - etak) - log(data.F[icc](etal)) + log(data.F[icc](etak))
     bp, bm = fbernoulli_pm(Q)
 
     ncck, nccl = get_density!(u, edge, data, icc)
@@ -1689,14 +1694,15 @@ function ExcessChemicalPotentialDiffusive(f, u, edge, data)
         ireg = edge.region
         (; k_B, q) = data.constants
 
-        #Steffi: temperatureLogmean statt params.temperature
-        j0 = (k_B * temperatureLogmean(u, data) / q) * params.mobility[icc, ireg]
+        T = temperatureLogmean(u, data)
+
+        j0 = (k_B * T / q) * params.mobility[icc, ireg]
 
         bandEdgeDiff = paramsnodal.bandEdgeEnergy[icc, nodel] - paramsnodal.bandEdgeEnergy[icc, nodek]
 
         etak, etal = etaFunction!(u, edge, data, icc)
 
-        Q = params.chargeNumbers[icc] * ((- bandEdgeDiff) / (k_B * temperatureLogmean(u, data))) + (etal - etak) - log(data.F[icc](etal)) + log(data.F[icc](etak))
+        Q = params.chargeNumbers[icc] * ((- bandEdgeDiff) / (k_B * T)) + (etal - etak) - log(data.F[icc](etal)) + log(data.F[icc](etak))
         bp, bm = fbernoulli_pm(Q)
 
         ncck, nccl = get_density!(u, edge, data, icc)
@@ -1722,10 +1728,9 @@ function chargeCarrierFlux!(f, u, edge, data, icc, ::Type{ExcessChemicalPotentia
     ireg = edge.region
     (; k_B, q) = data.constants
 
-
-    #Steffi: temperatureLogmean statt params.temperature
+    T = temperatureLogmean(u, data)
     mobility = params.mobility[icc, ireg] + (paramsnodal.mobility[icc, nodel] + paramsnodal.mobility[icc, nodek]) / 2
-    j0 = (k_B * temperatureLogmean(u, data) / q) * mobility
+    j0 = (k_B * T / q) * mobility
 
     dpsi = u[ipsi, 2] - u[ipsi, 1]
     bandEdgeDiff = paramsnodal.bandEdgeEnergy[icc, nodel] - paramsnodal.bandEdgeEnergy[icc, nodek]
@@ -1733,9 +1738,9 @@ function chargeCarrierFlux!(f, u, edge, data, icc, ::Type{ExcessChemicalPotentia
     etak, etal = etaFunction!(u, edge, data, icc)
 
     if paramsnodal.densityOfStates[icc, nodel] ≈ 0.0 || paramsnodal.densityOfStates[icc, nodek] ≈ 0.0
-        Q = params.chargeNumbers[icc] * ((dpsi * q - bandEdgeDiff) / (k_B * temperatureLogmean(u, data))) + (etal - etak) - log(data.F[icc](etal)) + log(data.F[icc](etak))
+        Q = params.chargeNumbers[icc] * ((dpsi * q - bandEdgeDiff) / (k_B * T)) + (etal - etak) - log(data.F[icc](etal)) + log(data.F[icc](etak))
     else
-        Q = params.chargeNumbers[icc] * ((dpsi * q - bandEdgeDiff) / (k_B * temperatureLogmean(u, data))) + (etal - etak) - log(data.F[icc](etal)) + log(data.F[icc](etak) - (log(paramsnodal.densityOfStates[icc, nodel]) - log(paramsnodal.densityOfStates[icc, nodek])))
+        Q = params.chargeNumbers[icc] * ((dpsi * q - bandEdgeDiff) / (k_B * T)) + (etal - etak) - log(data.F[icc](etal)) + log(data.F[icc](etak) - (log(paramsnodal.densityOfStates[icc, nodel]) - log(paramsnodal.densityOfStates[icc, nodek])))
     end
 
     bp, bm = fbernoulli_pm(Q)
@@ -1761,25 +1766,29 @@ function chargeCarrierFlux!(f, u, edge, data, icc, ::Type{DiffusionEnhanced})
     nodel = edge.node[2]   # right node
     ireg = edge.region
     (; k_B, q) = data.constants
-
+    T = temperatureLogmean(u, data)
 
     dpsi = u[ipsi, 2] - u[ipsi, 1]
     bandEdgeDiff = paramsnodal.bandEdgeEnergy[icc, nodel] - paramsnodal.bandEdgeEnergy[icc, nodek]
 
     etak, etal = etaFunction!(u, edge, data, icc) # calls etaFunction!(u, edge::VoronoiFVM.Edge, data, icc)
 
-    if (log(data.F[icc](etal)) - log(data.F[icc](etak))) ≈ 0.0 # regularization idea coming from Pietra-Jüngel scheme
+
+    if isapprox(log(data.F[icc](etal)) - log(data.F[icc](etak)), 0.0, atol = 1e-5) # # regularization idea coming from Pietra-Jüngel scheme
         gk = exp(etak) / data.F[icc](etak)
         gl = exp(etal) / data.F[icc](etal)
         g = 0.5 * (gk + gl)
     else
         g = (etal - etak) / (log(data.F[icc](etal)) - log(data.F[icc](etak)))
+      #  println("g = ", g)
+      #  println("eatl-etak", etal - etak)
+      #  println("log(F(etal)) - log(F(etak))", log(data.F[icc](etal)) - log(data.F[icc](etak)))
     end
 
-    j0 = (k_B * temperatureLogmean(u, data) / q) * params.mobility[icc, ireg] * g
+    j0 = (k_B * T / q) * params.mobility[icc, ireg] * g
 
 
-    bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * temperatureLogmean(u, data) * g))
+    bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * T * g))
     ncck, nccl = get_density!(u, edge, data, icc)
 
     f[icc] = - params.chargeNumbers[icc] * q * j0 * (bm * nccl - bp * ncck)
@@ -1801,7 +1810,7 @@ function chargeCarrierFlux!(f, u, edge, data, icc, ::Type{DiffusionEnhancedModif
     nodel = edge.node[2]   # right node
     ireg = edge.region
     (; k_B, q) = data.constants
-
+    T = temperatureLogmean(u, data)
 
     dpsi = u[ipsi, 2] - u[ipsi, 1]
     bandEdgeDiff = paramsnodal.bandEdgeEnergy[icc, nodel] - paramsnodal.bandEdgeEnergy[icc, nodek]
@@ -1816,9 +1825,9 @@ function chargeCarrierFlux!(f, u, edge, data, icc, ::Type{DiffusionEnhancedModif
         g = (etal - etak) / (log(data.F[icc](etal)) - log(data.F[icc](etak)))
     end
 
-    j0 = (k_B * temperatureLogmean(u, data) / q) * params.mobility[icc, ireg]
+    j0 = (k_B * T / q) * params.mobility[icc, ireg]
 
-    bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * temperatureLogmean(u, data) * g))
+    bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * T * g))
     ncck, nccl = get_density!(u, edge, data, icc)
 
     f[icc] = - params.chargeNumbers[icc] * q * j0 * (bm * nccl - bp * ncck)
@@ -1849,21 +1858,22 @@ function chargeCarrierFlux!(f, u, edge, data, icc, ::Type{GeneralizedSG})
     nodel = edge.node[2]   # right node
     ireg = edge.region
     (; k_B, q) = data.constants
+    T = temperatureLogmean(u, data)
 
-    j0 = (k_B * temperatureLogmean(u, data) / q) * params.mobility[icc, ireg]
+    j0 = (k_B * T / q) * params.mobility[icc, ireg]
 
     dpsi = u[ipsi, 2] - u[ipsi, 1]
     bandEdgeDiff = paramsnodal.bandEdgeEnergy[icc, nodel] - paramsnodal.bandEdgeEnergy[icc, nodek]
     etak, etal = etaFunction!(u, edge, data, icc)
 
     # use Sedan flux as starting guess
-    Q = params.chargeNumbers[icc] * ((dpsi * q - bandEdgeDiff) / (k_B * temperatureLogmean(u, data))) + (etal - etak) - log(data.F[icc](etal)) + log(data.F[icc](etak))
+    Q = params.chargeNumbers[icc] * ((dpsi * q - bandEdgeDiff) / (k_B * T)) + (etal - etak) - log(data.F[icc](etal)) + log(data.F[icc](etak))
     bp, bm = fbernoulli_pm(Q)
     ncck, nccl = get_density!(u, edge, data, icc)
 
     jInitial = (bm * nccl - bp * ncck)
 
-    implicitEq(j::Real) = (fbernoulli_pm(params.chargeNumbers[icc] * ((dpsi * q - bandEdgeDiff)) / (k_B * temperatureLogmean(u, data)) + params.γ * j)[2] * exp(etal) - fbernoulli_pm(params.chargeNumbers[icc] * ((dpsi * q - bandEdgeDiff) / (k_B * temperatureLogmean(u, data))) - params.γ * j)[1] * exp(etak)) - j
+    implicitEq(j::Real) = (fbernoulli_pm(params.chargeNumbers[icc] * ((dpsi * q - bandEdgeDiff)) / (k_B * T) + params.γ * j)[2] * exp(etal) - fbernoulli_pm(params.chargeNumbers[icc] * ((dpsi * q - bandEdgeDiff) / (k_B * T)) - params.γ * j)[1] * exp(etak)) - j
 
     delta = 1.0e-18 + 1.0e-14 * abs(value(jInitial))
     oldup = 1.0
