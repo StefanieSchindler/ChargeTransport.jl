@@ -28,7 +28,7 @@ $(TYPEDSIGNATURES)
 Returns the temperature as a solution variable from `u[data.index_T]` if `data.temperatureModel == NonIsothermal`.
 """
 function temperature(u, data, ::Type{NonIsothermal})
-    return u[data.index_T]
+    return u[data.index_T] * data.params.temperature # returns physical temperature since u[data.index_T] is dimensionless
 end
 
 
@@ -79,7 +79,7 @@ Used for flux calculations across edges in non-isothermal simulations.
 """
 
 function temperatureLogmean(u, data, ::Type{NonIsothermal})
-    return logmean(u[data.index_T, 1], u[data.index_T, 2])
+    return logmean(u[data.index_T, 1], u[data.index_T, 2]) * data.params.temperature # returns physical temperature since u[data.index_T, k] is dimensionless
 end
 
 ##########################################################
@@ -211,8 +211,8 @@ function etaFunction!(u, edge::VoronoiFVM.Edge, data, icc)
     E1 = data.tempBEE1[icc];  E2 = data.tempBEE2[icc]
 
     if data.temperatureModel == NonIsothermal
-        T1 = u[data.index_T, 1]
-        T2 = u[data.index_T, 2]
+        T1 = u[data.index_T, 1] * data.params.temperature
+        T2 = u[data.index_T, 2] * data.params.temperature
     else
         T1 = data.params.temperature
         T2 = data.params.temperature
@@ -481,7 +481,7 @@ function breaction!(f, u, bnode, data, ::Type{OhmicContactRobin})
         boundary_dirichlet!(f, u, bnode,
           species = data.index_T,
           region  = bnode.region,
-          value   = params.boundaryTemperature[bnode.region])
+          value   = params.boundaryTemperature[bnode.region] / data.params.temperature) # To non-dimensionalize the temperature
     end
     return
 
@@ -528,7 +528,7 @@ function breaction!(f, u, bnode, data, ::Type{OhmicContactDirichlet})
         boundary_dirichlet!(f, u, bnode,
             species = data.index_T,
             region  = bnode.region,
-            value   = data.params.boundaryTemperature[bnode.region])
+            value   = data.params.boundaryTemperature[bnode.region] / data.params.temperature)
     end
  
     return
@@ -1263,7 +1263,7 @@ Implements ``f[i_T] = c_v * u[i_T]`` where ``c_v`` is the volumetric heat capaci
 function temperatureStorage!(f, u, node, data, ::Type{NonIsothermal})
     iT = data.index_T
     c_v = data.params.heatCapacity
-    f[iT] = c_v * u[iT]
+    f[iT] = c_v * u[iT] * data.params.temperature # u[iT] is dimensionless
     return nothing
 end
 
@@ -1298,9 +1298,9 @@ get_SeebeckCoefficient(u, edge, data, icc) = get_SeebeckCoefficient(u, edge, dat
 function get_SeebeckCoefficient(u, edge, data, icc, ::Type{ScharfetterGummel})
 
     iT = data.index_T
-    Tk = u[iT, 1]  # temperature at node K
-    Tl =  u[iT, 2] # temperature at node L
-    T = logmean(Tk, Tl) # logmean temperature at edge
+    Tk = u[iT, 1] * data.params.temperature # physical temperature at node K
+    Tl =  u[iT, 2] * data.params.temperature # physical temperature at node L
+    T = logmean(Tk, Tl) 
 
     ireg = edge.region
 
@@ -1322,9 +1322,9 @@ end
 function get_SeebeckCoefficient(u, edge, data, icc, ::Type{DiffusionEnhanced})
 
     iT = data.index_T
-    Tk = u[iT, 1]  # temperature at node K
-    Tl =  u[iT, 2] # temperature at node L
-    T = logmean(Tk, Tl) # logmean temperature at edge
+    Tk = u[iT, 1] * data.params.temperature # physical temperature at node K
+    Tl =  u[iT, 2] * data.params.temperature # physical temperature at node L
+    T = logmean(Tk, Tl) 
 
     ireg = edge.region
 
@@ -1444,7 +1444,7 @@ function jouleHeating!(f, u, edge, data)
 
 
     # following Kantner 2020, eq. (27a) with the modification that every summand of Seebeck coefficient is multiplied with (TL-TK)
-    f[iT] = f[iT] - Jn * ((u[iphin, 2] - u[iphin, 1]) + PnΔT) - Jp * ((u[iphip, 2] - u[iphip, 1]) + PpΔT)
+    f[iT] = f[iT] - (Jn * ((u[iphin, 2] - u[iphin, 1]) + PnΔT) - Jp * ((u[iphip, 2] - u[iphip, 1]) + PpΔT)) / data.params.temperature 
    
    return nothing
 end
@@ -1780,9 +1780,6 @@ function chargeCarrierFlux!(f, u, edge, data, icc, ::Type{DiffusionEnhanced})
         g = 0.5 * (gk + gl)
     else
         g = (etal - etak) / (log(data.F[icc](etal)) - log(data.F[icc](etak)))
-      #  println("g = ", g)
-      #  println("eatl-etak", etal - etak)
-      #  println("log(F(etal)) - log(F(etak))", log(data.F[icc](etal)) - log(data.F[icc](etak)))
     end
 
     j0 = (k_B * T / q) * params.mobility[icc, ireg] * g
@@ -1817,7 +1814,7 @@ function chargeCarrierFlux!(f, u, edge, data, icc, ::Type{DiffusionEnhancedModif
 
     etak, etal = etaFunction!(u, edge, data, icc) # calls etaFunction!(u, edge::VoronoiFVM.Edge, data, icc)
 
-    if (log(data.F[icc](etal)) - log(data.F[icc](etak))) ≈ 0.0 # regularization idea coming from Pietra-Jüngel scheme
+    if isapprox(log(data.F[icc](etal)) - log(data.F[icc](etak)), 0.0, atol = 1e-5) # regularization idea coming from Pietra-Jüngel scheme
         gk = exp(etak) / data.F[icc](etak)
         gl = exp(etal) / data.F[icc](etal)
         g = 0.5 * (gk + gl)
@@ -2156,7 +2153,7 @@ The heat source is defined by the user in the parameters.
 
 function heatSource!(f, node, data)
     if data.temperatureModel == NonIsothermal
-        f[data.index_T] = data.params.heatSource(node,data)
+        f[data.index_T] = data.params.heatSource(node,data) / data.params.temperature # to non-dimensionalize the temperature
     end
 
     return nothing

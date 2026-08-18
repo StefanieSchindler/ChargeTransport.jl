@@ -11,7 +11,7 @@ https://doi.org/10.48550/arXiv.2506.10691.
 
 ENV["LC_NUMERIC"] = "C" # put this in to work with Triangulate.jl, which is originally written in c++
 
-module Ex201_PSC_Textured
+module Ex201b_PSC_Textured_NonIso
 
     using ChargeTransport
     using ExtendableGrids
@@ -502,7 +502,9 @@ module Ex201_PSC_Textured
         data = Data(grid, p.numberOfCarriers, contactVoltageFunction = contactVoltageFunction, generationData = generationData)
 
         ## Possible choices: Stationary, Transient
-        data.modelType = Transient
+        data.modelType = Stationary #Transient
+
+        data.temperatureModel = NonIsothermal
 
         data.bulkRecombination = set_bulk_recombination(;
             iphin = p.iphin, iphip = p.iphip,
@@ -546,10 +548,14 @@ module Ex201_PSC_Textured
         data.params.recombinationSRHvelocity[p.iphin, p.bregionJ2] = vHTL
         data.params.recombinationSRHvelocity[p.iphip, p.bregionJ2] = vHTL
 
+        data.params.thermalConductivity = 45.0  # W/(m·K) for GaAs
+        data.params.heatCapacity = 2.0e6        # J/(m³·K) for GaAs
+
         ctsys = System(grid, data, unknown_storage = :sparse)
-        
+
         data.fluxApproximation[p.iphin] = ScharfetterGummel
         data.fluxApproximation[p.iphip] = ScharfetterGummel
+
 
         if test == false
             println("*** done\n")
@@ -580,13 +586,21 @@ module Ex201_PSC_Textured
             println("Compute solution in thermodynamic equilibrium for Boltzmann")
         end
         ################################################################################
+       
+        inival_eq = VoronoiFVM.unknowns(ctsys.fvmsys)
+        inival_eq .= 0.0
+         # Temperature initial guess
+         if data.temperatureModel == NonIsothermal
+            inival_eq[data.index_T, :] .= 300.0 # constant initial guess for temperature
+         end
+
 
         #data.params.bandEdgeEnergy[3, 2] = -5.267 * eV
         ## Solve for the equilibrium solution in several steps:
         #   1) Poisson problem is solved,
         #   2) Full system is solved in equilibrium with photogeneration turned on,
         #   Since vacancyEnergyCalculation = true, we repeat 1) and 2) until Ea is found (which corresponds to given initial vacancy density p.Ca)
-        solEQ = equilibrium_solve!(ctsys, control = control, vacancyEnergyCalculation = vacancyEnergyCalculation)
+        solEQ = equilibrium_solve!(ctsys, inival = inival_eq, control = control, vacancyEnergyCalculation = vacancyEnergyCalculation, nonlinear_steps = 30.0)
         inival = solEQ
 
         if test == false

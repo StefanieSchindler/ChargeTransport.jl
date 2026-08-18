@@ -224,7 +224,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     =#
 
     params.boundaryTemperature[bregionAcceptor] = 300.0 * K
-    params.boundaryTemperature[bregionDonor]    = 310.0 * K
+    params.boundaryTemperature[bregionDonor]    = 305.0 * K
 
 
     T_left = params.boundaryTemperature[bregionAcceptor]
@@ -325,9 +325,9 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     inival_eq[data.index_psi, :] .=  0.0 # random initial guess for electric potential  
     # Temperature initial guess
     if data.temperatureModel == NonIsothermal && (data.boundaryType[bregionAcceptor] == OhmicContact && data.boundaryType[bregionDonor] == OhmicContact)
-        inival_eq[data.index_T, :] = T_left .+ (T_right - T_left) .* coord ./ h_total # linear initial guess for temperature
+        inival_eq[data.index_T, :] = (T_left .+ (T_right - T_left) .* coord ./ h_total) ./ data.params.temperature # linear initial guess for temperature
     else 
-        inival_eq[data.index_T, :] .= T # constant initial guess for temperature
+        inival_eq[data.index_T, :] .= T/data.params.temperature # constant initial guess for temperature
     end
 
     solution = equilibrium_solve!(ctsys, inival = inival_eq, control = control, nonlinear_steps = 30.0)

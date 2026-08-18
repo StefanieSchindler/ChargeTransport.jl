@@ -769,7 +769,7 @@ function plot_temperature!(visualizer, ctsys, solution, title; plotGridpoints = 
     scalarplot!(
         visualizer,
         grid,
-        solution[iT, :];
+        solution[iT, :] * data.params.temperature; # solution[iT, :] contains the dimensionless temperature
         color = :orange,
         markershape = marker,
         markersize = 8,
@@ -824,7 +824,7 @@ function plot_temperatureFlux!(visualizer, ctsys, solution, title; plotGridpoint
     vectorplot!(
         visualizer,
         grid,
-        nf[:,iT,:],
+        nf[:,iT,:] * data.params.temperature,
         color = :orange,
         title = title,
         markershape = marker,

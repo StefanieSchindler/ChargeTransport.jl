@@ -1506,7 +1506,7 @@ function build_system(grid, data, ::Type{ContQF}; kwargs...)
 
     q = data.constants.q
     k_B = data.constants.k_B
-    T = data.params.temperature
+    T = data.params.temperature  # No solution vector u available; use reference temperature for initial guess. Runtime physics functions correctly use temperature(u, data) during simulation.
 
     # if ionic carriers are present
     for iicc in data.ionicCarrierList
@@ -1883,7 +1883,6 @@ Function which calculates the equilibrium solution in case of non-present fluxes
 """
 
 function equilibrium_solve!(ctsys::System; inival = VoronoiFVM.unknowns(ctsys.fvmsys, inival = 0.0), control = VoronoiFVM.NewtonControl(), nonlinear_steps = 20.0, vacancyEnergyCalculation::Bool = false, verbose::Bool = false, yabstol::Float64 = 1.0e-2, ytol::Float64 = 1.0e-4, maxiter::Int64 = 15) # last three are extended-only keywords for vacancyEnergyCalculation = true
-
     ## by default vacancyEnergyCalculation is false.
     return _equilibrium_solve!(Val(vacancyEnergyCalculation), ctsys; inival = inival, control = control, nonlinear_steps = nonlinear_steps, verbose = verbose, yabstol = yabstol, ytol = ytol, maxiter = maxiter)
 
@@ -1953,7 +1952,7 @@ function _equilibrium_solve!(::Val{false}, ctsys::System; inival, control, nonli
 
             # Steffi: use temperature from solution for non-isothermal, params.temperature for isothermal
             if data.temperatureModel == NonIsothermal
-                T = sol[data.index_T, bnode[ibreg]]
+                T = sol[data.index_T, bnode[ibreg]] * data.params.temperature
             else
                 T = params.temperature
             end
@@ -2104,7 +2103,7 @@ function _equilibrium_solve!(::Val{true}, ctsys::System; inival, control, nonlin
 
             #------ Steffi: use temperature from solution for non-isothermal, params.temperature for isothermal ------
             if data.temperatureModel == NonIsothermal
-                T = sol[data.index_T, bnode[ibreg]]
+                T = sol[data.index_T, bnode[ibreg]] * data.params.temperature
             else
                 T = params.temperature
             end
@@ -2317,7 +2316,7 @@ function electroNeutralSolution(ctsys)
 
         Ec = params.bandEdgeEnergy[iphin, ireg]
         Ev = params.bandEdgeEnergy[iphip, ireg]
-        T = params.temperature
+        T = params.temperature  # No solution vector u available; use reference temperature for initial guess. Runtime physics functions correctly use temperature(u, data) during simulation.
         Nc = params.densityOfStates[iphin, ireg]
         Nv = params.densityOfStates[iphip, ireg]
         C = params.doping[iphin, ireg] - params.doping[iphip, ireg]       # N_D - N_A
