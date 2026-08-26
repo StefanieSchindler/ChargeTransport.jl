@@ -478,8 +478,12 @@ function breaction!(f, u, bnode, data, ::Type{OhmicContactRobin})
     boundary_dirichlet!(f, u, bnode, species = iphip, region = bnode.region, value = Δu)
 
 
-    temperature_bc!(f, u, bnode, data)
-   
+    if bnode.region == 2
+        temperature_bc!(f, u, bnode, data)
+    else 
+        boundary_dirichlet!(f,u, bnode, species = data.index_T, region = bnode.region, value = 1.0)
+     #   temperature_bc!(f, u, bnode, data)
+    end
 
     return
 
@@ -1336,7 +1340,7 @@ function get_SeebeckCoefficient(u, edge, data, icc, ::Type{ScharfetterGummel})
     etak, etal = etaFunction!(u, edge, data, icc)
 
     # Seebeck coefficient at edge times (Tl - Tk)
-    PccΔT = - k_B / q * (log(Ncc(Tl) / Ncc(Tk)) * T - ((Tl - T) * etal - (Tk - T) * etak)  - 1/k_B * (Ecc(Tk) - Ecc(Tl)))
+    PccΔT = - k_B / q * (log(Ncc(Tl) / Ncc(Tk)) * T - ((Tl - T) * etal - (Tk - T) * etak)  - 1/k_B * (Ecc(Tl) - Ecc(Tk)))
     
     return PccΔT
 
@@ -1367,7 +1371,7 @@ function get_SeebeckCoefficient(u, edge, data, icc, ::Type{DiffusionEnhanced})
         g = (etal - etak) / (log(data.F[icc](etal)) - log(data.F[icc](etak)))
     end
     # Seebeck coefficient at edge times (Tl - Tk)
-    PccΔT  = - k_B / q * (log(Ncc(Tl) / Ncc(Tk)) * g * T - ((Tl - T) * etal - (Tk - T) * etak)  - 1/k_B * (Ecc(Tk) - Ecc(Tl)))
+    PccΔT  = - k_B / q * (log(Ncc(Tl) / Ncc(Tk)) * g * T - ((Tl - T) * etal - (Tk - T) * etak)  - 1/k_B * (Ecc(Tl) - Ecc(Tk)))
 
     return PccΔT
 end
@@ -1406,7 +1410,7 @@ end
 
     Jcc = params.chargeNumbers[icc] * q * j0 * (bm * nccl - bp * ncck) # sign correct?
 
-    return params.chargeNumbers[icc] * Jcc
+    return Jcc
 end
 
 # The following (and DiffusionEnhanced in general) is not running! Also in the isothermal case, it is not running.
@@ -1441,15 +1445,16 @@ function compute_chargeCarrierFluxValue(u, edge, data, icc, ::Type{DiffusionEnha
     bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * T * g))
     ncck, nccl = get_density!(u, edge, data, icc)
 
-    Jcc =  params.chargeNumbers[icc] * q * j0 * (bm * nccl - bp * ncck)
+    Jcc = params.chargeNumbers[icc] * q * j0 * (bm * nccl - bp * ncck)
 
-    return params.chargeNumbers[icc] * Jcc
+    return Jcc
 end
 
 
 
 
 function jouleHeating!(f, u, edge, data)
+    params = data.params
     iT = data.index_T
 
     iphin = data.bulkRecombination.iphin
@@ -1467,8 +1472,8 @@ function jouleHeating!(f, u, edge, data)
 
 
     # following Kantner 2020, eq. (27a) with the modification that every summand of Seebeck coefficient is multiplied with (TL-TK)
-    # and the sign changes since the term need to be added to the left hand side of the equation in VoronoiFVM
-    f[iT] = f[iT] + (Jn * ((u[iphin, 2] - u[iphin, 1]) + PnΔT) + Jp * ((u[iphip, 2] - u[iphip, 1]) + PpΔT)) / data.params.temperature 
+    # and both summands are divided by T and multiplied by the charge number
+    f[iT] = f[iT] + (params.chargeNumbers[iphin] * Jn * ((u[iphin, 2] - u[iphin, 1]) + PnΔT) + params.chargeNumbers[iphip] * Jp * ((u[iphip, 2] - u[iphip, 1]) + PpΔT)) / params.temperature 
    
    return nothing
 end

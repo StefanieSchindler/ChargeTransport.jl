@@ -175,9 +175,12 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     data.fluxApproximation[iphin] = ScharfetterGummel # DiffusionEnhanced # 
     data.fluxApproximation[iphip] = ScharfetterGummel # DiffusionEnhanced #  
 
+    data.ohmicContactModel = OhmicContactDirichlet # OhmicContactRobin
+
     ## Following choices are possible for boundary model: For contacts currently only
     ## OhmicContact and SchottkyContact are possible. For inner boundaries we have
     ## InterfaceNone, InterfaceRecombination.
+  
     data.boundaryType[bregionAcceptor] = OhmicContact
     data.boundaryType[bregionDonor] = OhmicContact
 
