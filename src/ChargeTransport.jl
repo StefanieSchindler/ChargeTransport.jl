@@ -27,7 +27,7 @@ using Roots: Roots, find_zero
 using SpecialFunctions: erfc, erfcinv
 # PDE solver with a FVM spatial discretization
 using VoronoiFVM: VoronoiFVM, ContinuousQuantity, DiscontinuousQuantity,
-    TestFunctionFactory, boundary_dirichlet!, fbernoulli_pm, physics!,
+    TestFunctionFactory, boundary_dirichlet!, boundary_robin!, fbernoulli_pm, physics!,
     unknown_indices, value
 
 # for internal data handling (naming "inspired" by DrWatson)

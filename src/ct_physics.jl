@@ -1,7 +1,7 @@
 ##########################################################
 ##########################################################
 
-##### auxiliary functions for temperature dependence #######  #Steffi
+##### auxiliary functions for temperature dependence ####### 
 """
 $(TYPEDSIGNATURES)
 
@@ -47,6 +47,7 @@ function logmean(a, b; rtol = 1e-6)
         return (a - b) / log(a / b)
     end
 end
+
 
 
 """
@@ -476,13 +477,8 @@ function breaction!(f, u, bnode, data, ::Type{OhmicContactRobin})
     boundary_dirichlet!(f, u, bnode, species = iphin, region = bnode.region, value = Δu)
     boundary_dirichlet!(f, u, bnode, species = iphip, region = bnode.region, value = Δu)
 
-    #Steffi
-    if data.temperatureModel == NonIsothermal
-        boundary_dirichlet!(f, u, bnode,
-          species = data.index_T,
-          region  = bnode.region,
-          value   = params.boundaryTemperature[bnode.region] / data.params.temperature) # To non-dimensionalize the temperature
-    end
+    temperature_bc!(f, u, bnode, data)
+
     return
 
 end
@@ -523,14 +519,8 @@ function breaction!(f, u, bnode, data, ::Type{OhmicContactDirichlet})
     boundary_dirichlet!(f, u, bnode, species = iphip, region = bnode.region, value = Δu)
     boundary_dirichlet!(f, u, bnode, species = ipsi, region = bnode.region, value = ψ0 + Δu)
 
-    # Steffi: Dirichlet-Randbedingung für T
-    if data.temperatureModel == NonIsothermal
-        boundary_dirichlet!(f, u, bnode,
-            species = data.index_T,
-            region  = bnode.region,
-            value   = data.params.boundaryTemperature[bnode.region] / data.params.temperature)
-    end
- 
+    temperature_bc!(f, u, bnode, data)
+
     return
 
 end
@@ -755,6 +745,30 @@ function breaction!(f, u, bnode, data, ::Type{GateContact})
 
     return
 end
+
+### function for temperature boundary conditions ###
+# TODO: add multiple dispatch on model type or BC type
+temperature_bc!(f, u, bnode, data) = temperature_bc!(f, u, bnode, data, data.temperatureModel)
+
+temperature_bc!(f, u, bnode, data, ::Type{Isothermal}) = emptyFunction()
+
+function temperature_bc!(f, u, bnode, data, ::Type{NonIsothermal})
+    params = data.params
+    iT = data.index_T
+    T_env = params.boundaryAmbientTemp[bnode.region] / params.temperature
+        
+    h = 1.0e3
+    f[iT] = f[iT] + h * (u[iT] - T_env)
+
+    #=
+    T_env = params.boundaryAmbientTemp[bnode.region] / data.params.temperature
+    factor =  1.18
+    boundary_robin!(f, u, bnode, species = iT, region = bnode.region, factor = factor, value = factor * T_env)
+        
+    =#
+    return
+end
+
 
 ##########################################################
 ##########################################################
@@ -1263,7 +1277,7 @@ Implements ``f[i_T] = c_v * u[i_T]`` where ``c_v`` is the volumetric heat capaci
 function temperatureStorage!(f, u, node, data, ::Type{NonIsothermal})
     iT = data.index_T
     c_v = data.params.heatCapacity
-    f[iT] = c_v * u[iT] * data.params.temperature # u[iT] is dimensionless
+    f[iT] = c_v * u[iT]
     return nothing
 end
 
@@ -1273,18 +1287,21 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Master edgereaction! function that enters VoronoiFVM. It dispatches on the temperature model. 
+Master edgereaction! function that enters VoronoiFVM. It dispatches on the temperature model 
+and on the calculation type.
 """
-edgereaction!(f, u, edge, data) = edgereaction!(f, u, edge, data, data.temperatureModel)
+edgereaction!(f, u, edge, data) = edgereaction!(f, u, edge, data, data.temperatureModel, data.calculationType)
 
-edgereaction!(f, u, edge, data, ::Type{Isothermal}) = emptyFunction()
+edgereaction!(f, u, edge, data, ::Type{Isothermal}, ::Type{<:CalculationType}) = emptyFunction()
+
+edgereaction!(f, u, edge, data, ::Type{NonIsothermal}, ::Type{InEquilibrium}) = emptyFunction()
 
 """ 
 $(TYPEDSIGNATURES)
 
 In the non-isothermal case, it calls the jouleHeating! and thomsonPeltierHeating! functions.
 """
-function edgereaction!(f, u, edge, data, ::Type{NonIsothermal}) 
+function edgereaction!(f, u, edge, data, ::Type{NonIsothermal}, ::Type{OutOfEquilibrium}) 
     jouleHeating!(f, u, edge, data)
   #  thomsonPeltierHeating!(f, u, edge, data)
     return nothing
@@ -1444,7 +1461,7 @@ function jouleHeating!(f, u, edge, data)
 
 
     # following Kantner 2020, eq. (27a) with the modification that every summand of Seebeck coefficient is multiplied with (TL-TK)
-    f[iT] = f[iT] - (Jn * ((u[iphin, 2] - u[iphin, 1]) + PnΔT) - Jp * ((u[iphip, 2] - u[iphip, 1]) + PpΔT)) / data.params.temperature 
+    f[iT] = f[iT] + (- Jn * ((u[iphin, 2] - u[iphin, 1]) + PnΔT) - Jp * ((u[iphip, 2] - u[iphip, 1]) + PpΔT)) / data.params.temperature 
    
    return nothing
 end
@@ -1922,7 +1939,7 @@ end
 function heatFlux!(f, u, edge, data, ::Type{NonIsothermal})
     iT = data.index_T
     params = data.params
-    f[iT] = - params.thermalConductivity * (u[iT, 2] - u[iT, 1])
+    f[iT] = - params.thermalConductivity * (u[iT, 2] - u[iT, 1]) 
     return nothing
 end
 

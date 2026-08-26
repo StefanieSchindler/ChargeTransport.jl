@@ -18,6 +18,7 @@ using ChargeTransport  # drift-diffusion solver
 using ExtendableGrids  # grid initializer
 using GridVisualize
 using LaTeXStrings
+using DocStringExtensions: TYPEDSIGNATURES
 
 ## This function is used to initialize the grid for a possible extension to other p-i-n devices.
 function initialize_pin_grid(refinementfactor, h_ndoping, h_intrinsic, h_pdoping)
@@ -171,8 +172,8 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     )
 
     # Steffi: set flux approximation to test the non-isothermal model and jouleHeating
-    data.fluxApproximation[iphin] = DiffusionEnhanced # ScharfetterGummel #  
-    data.fluxApproximation[iphip] = DiffusionEnhanced # ScharfetterGummel # 
+    data.fluxApproximation[iphin] = ScharfetterGummel # DiffusionEnhanced # 
+    data.fluxApproximation[iphip] = ScharfetterGummel # DiffusionEnhanced #  
 
     ## Following choices are possible for boundary model: For contacts currently only
     ## OhmicContact and SchottkyContact are possible. For inner boundaries we have
@@ -223,12 +224,18 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     end
     =#
 
-    params.boundaryTemperature[bregionAcceptor] = 300.0 * K
-    params.boundaryTemperature[bregionDonor]    = 305.0 * K
+    # Note: junction boundaries (3, 4) use InterfaceNone by default,
+    # so boundaryAmbientTemp and bHeatTransferCoeff are not accessed there.
+    params.boundaryAmbientTemp[bregionAcceptor] = 300.0 # K
+    params.boundaryAmbientTemp[bregionDonor]    = 300.0 # K
 
 
-    T_left = params.boundaryTemperature[bregionAcceptor]
-    T_right = params.boundaryTemperature[bregionDonor]
+    params.bHeatTransferCoeff[bregionAcceptor] = 300.0       # W/(m²·K) # for Robin BC
+    params.bHeatTransferCoeff[bregionDonor]    = 300.0       # W/(m²·K) # for Robin BC
+
+
+    T_left = params.boundaryAmbientTemp[bregionAcceptor]
+    T_right = params.boundaryAmbientTemp[bregionDonor]
 
     for ireg in 1:numberOfRegions # region data
 
@@ -306,7 +313,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     control.abstol = 1.0e-12 # 1.0e-14
     control.reltol = 1.0e-12 #1.0e-14
     control.tol_round = 1.0e-6 #1.0e-8
-    control.damp_initial = 0.1 #0.5
+    control.damp_initial = 0.001 #0.5
     control.max_round = 5 # 3
 
     if test == false
@@ -345,7 +352,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
 
     println("calculationType: ", ctsys.fvmsys.physics.data.calculationType)
     maxBias = voltageAcceptor # bias goes until the given voltage at acceptor boundary
-    biasValues = range(0, stop = maxBias, length = 32)
+    biasValues = range(0, stop = maxBias, length = 32) 
     IV = zeros(0)
 
     for Δu in biasValues

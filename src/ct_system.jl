@@ -429,9 +429,16 @@ mutable struct Params
 
     #Steffi
     """
-    An array containing constant values for the temperature at the boundary.
+    An array containing ambient temperature at each boundary region in [K]. 
+    Used for Dirichlet temperature BC or as environment temperature in Robin BC.
     """
-    boundaryTemperature::Array{Float64, 1}
+    boundaryAmbientTemp::Array{Float64, 1}
+
+    """
+    An array containing the heat transfer coefficient at each boundary region
+    for Robin temperature boundary conditions [W/(m²·K)].
+    """
+    bHeatTransferCoeff::Array{Float64, 1}
 
 
     ###############################################################
@@ -659,8 +666,9 @@ function Params(numberOfRegions, numberOfBoundaryRegions, numberOfCarriers)
     params.dielectricConstantOxideGate = zeros(Float64, numberOfBoundaryRegions)
     params.thicknessOxideGate = zeros(Float64, numberOfBoundaryRegions)
     params.surfaceChargeDensityGate = zeros(Float64, numberOfBoundaryRegions)
-    params.boundaryTemperature = ones(Float64, numberOfBoundaryRegions) #Steffi
-   # params.boundaryTemperature .= 300.0 * K #Steffi: Default value for boundary temperature
+    params.boundaryAmbientTemp = ones(Float64, numberOfBoundaryRegions) #Steffi
+    params.bHeatTransferCoeff = zeros(Float64, numberOfBoundaryRegions)
+
 
     ###############################################################
     ####                  number of carriers                   ####
