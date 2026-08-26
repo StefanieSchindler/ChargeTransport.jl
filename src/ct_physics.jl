@@ -477,7 +477,9 @@ function breaction!(f, u, bnode, data, ::Type{OhmicContactRobin})
     boundary_dirichlet!(f, u, bnode, species = iphin, region = bnode.region, value = Δu)
     boundary_dirichlet!(f, u, bnode, species = iphip, region = bnode.region, value = Δu)
 
+
     temperature_bc!(f, u, bnode, data)
+   
 
     return
 
@@ -519,8 +521,12 @@ function breaction!(f, u, bnode, data, ::Type{OhmicContactDirichlet})
     boundary_dirichlet!(f, u, bnode, species = iphip, region = bnode.region, value = Δu)
     boundary_dirichlet!(f, u, bnode, species = ipsi, region = bnode.region, value = ψ0 + Δu)
 
-    temperature_bc!(f, u, bnode, data)
-
+    if bnode.region == 2
+        temperature_bc!(f, u, bnode, data)
+    else 
+        boundary_dirichlet!(f,u, bnode, species = data.index_T, region = bnode.region, value = 1.0)
+     #   temperature_bc!(f, u, bnode, data)
+    end
     return
 
 end
@@ -757,7 +763,7 @@ function temperature_bc!(f, u, bnode, data, ::Type{NonIsothermal})
     iT = data.index_T
     T_env = params.boundaryAmbientTemp[bnode.region] / params.temperature
         
-    h = 1.0e3
+    h = 1.0
     f[iT] = f[iT] + h * (u[iT] - T_env)
 
     #=
@@ -1398,9 +1404,9 @@ end
     bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * T))
     ncck, nccl = get_density!(u, edge, data, icc)
 
-    Jcc =  params.chargeNumbers[icc] * q * j0 * (bm * nccl - bp * ncck) # sign correct?
+    Jcc = params.chargeNumbers[icc] * q * j0 * (bm * nccl - bp * ncck) # sign correct?
 
-    return  Jcc
+    return params.chargeNumbers[icc] * Jcc
 end
 
 # The following (and DiffusionEnhanced in general) is not running! Also in the isothermal case, it is not running.
@@ -1437,7 +1443,7 @@ function compute_chargeCarrierFluxValue(u, edge, data, icc, ::Type{DiffusionEnha
 
     Jcc =  params.chargeNumbers[icc] * q * j0 * (bm * nccl - bp * ncck)
 
-    return  Jcc
+    return params.chargeNumbers[icc] * Jcc
 end
 
 
@@ -1461,7 +1467,8 @@ function jouleHeating!(f, u, edge, data)
 
 
     # following Kantner 2020, eq. (27a) with the modification that every summand of Seebeck coefficient is multiplied with (TL-TK)
-    f[iT] = f[iT] + (- Jn * ((u[iphin, 2] - u[iphin, 1]) + PnΔT) - Jp * ((u[iphip, 2] - u[iphip, 1]) + PpΔT)) / data.params.temperature 
+    # and the sign changes since the term need to be added to the left hand side of the equation in VoronoiFVM
+    f[iT] = f[iT] + (Jn * ((u[iphin, 2] - u[iphin, 1]) + PnΔT) + Jp * ((u[iphip, 2] - u[iphip, 1]) + PpΔT)) / data.params.temperature 
    
    return nothing
 end
