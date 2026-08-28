@@ -2111,7 +2111,7 @@ function _equilibrium_solve!(::Val{true}, ctsys::System; inival, control, nonlin
 
             #------ Steffi: use temperature from solution for non-isothermal, params.temperature for isothermal ------
             if data.temperatureModel == NonIsothermal
-                T = sol[data.index_T, bnode[ibreg]] * data.params.temperature
+                T = data.params.temperature #TODO: #sol[data.index_T, ...] * data.params.temperature ???
             else
                 T = params.temperature
             end

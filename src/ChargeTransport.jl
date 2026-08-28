@@ -131,6 +131,9 @@ export plot_densities!, plot_energies!, plot_doping!, plot_electroNeutralSolutio
 export plot_solution!, plot_IV!
 export plot_temperature, plot_temperature!
 export plot_temperatureFlux, plot_temperatureFlux!
+export plot_jouleHeating, plot_jouleHeating!
+export compute_jouleHeating
+
 
 #################################################################
 include("ct_io.jl")

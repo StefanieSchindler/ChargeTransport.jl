@@ -25,7 +25,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Returns the temperature as a solution variable from `u[data.index_T]` if `data.temperatureModel == NonIsothermal`.
+Returns the physical temperature as a solution variable from `u[data.index_T]` multiplied by `data.params.temperature` if `data.temperatureModel == NonIsothermal`.
 """
 function temperature(u, data, ::Type{NonIsothermal})
     return u[data.index_T] * data.params.temperature # returns physical temperature since u[data.index_T] is dimensionless
@@ -481,8 +481,8 @@ function breaction!(f, u, bnode, data, ::Type{OhmicContactRobin})
     if bnode.region == 2
         temperature_bc!(f, u, bnode, data)
     else 
-        boundary_dirichlet!(f,u, bnode, species = data.index_T, region = bnode.region, value = 1.0)
-     #   temperature_bc!(f, u, bnode, data)
+      # boundary_dirichlet!(f,u, bnode, species = data.index_T, region = bnode.region, value = 1.0)
+        temperature_bc!(f, u, bnode, data)
     end
 
     return
@@ -526,10 +526,11 @@ function breaction!(f, u, bnode, data, ::Type{OhmicContactDirichlet})
     boundary_dirichlet!(f, u, bnode, species = ipsi, region = bnode.region, value = ψ0 + Δu)
 
     if bnode.region == 2
+     #   boundary_dirichlet!(f,u, bnode, species = data.index_T, region = bnode.region, value = 1.0)
         temperature_bc!(f, u, bnode, data)
     else 
-        boundary_dirichlet!(f,u, bnode, species = data.index_T, region = bnode.region, value = 1.0)
-     #   temperature_bc!(f, u, bnode, data)
+      #  boundary_dirichlet!(f,u, bnode, species = data.index_T, region = bnode.region, value = 1.0)
+        temperature_bc!(f, u, bnode, data)
     end
     return
 
@@ -767,7 +768,7 @@ function temperature_bc!(f, u, bnode, data, ::Type{NonIsothermal})
     iT = data.index_T
     T_env = params.boundaryAmbientTemp[bnode.region] / params.temperature
         
-    h = 1.0
+    h = 100.0
     f[iT] = f[iT] + h * (u[iT] - T_env)
 
     #=
@@ -1302,7 +1303,7 @@ and on the calculation type.
 """
 edgereaction!(f, u, edge, data) = edgereaction!(f, u, edge, data, data.temperatureModel, data.calculationType)
 
-edgereaction!(f, u, edge, data, ::Type{Isothermal}, ::Type{<:CalculationType}) = emptyFunction()
+edgereaction!(f, u, edge, data, ::Type{Isothermal}, ::CalculationType) = emptyFunction()
 
 edgereaction!(f, u, edge, data, ::Type{NonIsothermal}, ::Type{InEquilibrium}) = emptyFunction()
 
@@ -1408,7 +1409,7 @@ end
     bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * T))
     ncck, nccl = get_density!(u, edge, data, icc)
 
-    Jcc = params.chargeNumbers[icc] * q * j0 * (bm * nccl - bp * ncck) # sign correct?
+    Jcc = - params.chargeNumbers[icc] * q * j0 * (bm * nccl - bp * ncck) # sign correct?
 
     return Jcc
 end
@@ -1445,7 +1446,7 @@ function compute_chargeCarrierFluxValue(u, edge, data, icc, ::Type{DiffusionEnha
     bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * T * g))
     ncck, nccl = get_density!(u, edge, data, icc)
 
-    Jcc = params.chargeNumbers[icc] * q * j0 * (bm * nccl - bp * ncck)
+    Jcc = - params.chargeNumbers[icc] * q * j0 * (bm * nccl - bp * ncck)
 
     return Jcc
 end
@@ -1472,9 +1473,9 @@ function jouleHeating!(f, u, edge, data)
 
 
     # following Kantner 2020, eq. (27a) with the modification that every summand of Seebeck coefficient is multiplied with (TL-TK)
-    # and both summands are divided by T and multiplied by the charge number
-    f[iT] = f[iT] + (params.chargeNumbers[iphin] * Jn * ((u[iphin, 2] - u[iphin, 1]) + PnΔT) + params.chargeNumbers[iphip] * Jp * ((u[iphip, 2] - u[iphip, 1]) + PpΔT)) / params.temperature 
-   
+    # and both summands are divided by T 
+   # f[iT] = f[iT] + Jn * ((u[iphin, 2] - u[iphin, 1]) + PnΔT) / params.temperature #
+  #  f[iT] = f[iT] + Jp * ((u[iphip, 2] - u[iphip, 1]) + PpΔT) / params.temperature
    return nothing
 end
 

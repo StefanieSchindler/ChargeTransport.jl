@@ -94,7 +94,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     bfacemask!(grid, [h_pdoping + h_intrinsic], [h_pdoping + h_intrinsic], bregionJunction2) # second inner interface
 
     if Plotter !== nothing
-        vis = GridVisualizer(; Plotter, layout = (5, 2), size = (1550, 800))
+        vis = GridVisualizer(; Plotter, layout = (7, 2), size = (1550, 800))
         gridplot!(vis[1, 1], grid; Plotter, legend = :lt, title = "Grid", xlabel = L"\text{space [m]}", show = true)
     end
 
@@ -312,11 +312,11 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
 
     control = SolverControl()
     control.verbose = verbose
-    control.maxiters = 100 # 50
-    control.abstol = 1.0e-12 # 1.0e-14
-    control.reltol = 1.0e-12 #1.0e-14
-    control.tol_round = 1.0e-6 #1.0e-8
-    control.damp_initial = 0.001 #0.5
+    control.maxiters = 200 # 50
+    control.abstol = 1.0e-8 # 1.0e-14
+    control.reltol = 1.0e-8 #1.0e-14
+    control.tol_round = 1.0e-4 #1.0e-8
+    control.damp_initial = 0.5 #0.5
     control.max_round = 5 # 3
 
     if test == false
@@ -354,8 +354,8 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     ################################################################################
 
     println("calculationType: ", ctsys.fvmsys.physics.data.calculationType)
-    maxBias = voltageAcceptor # bias goes until the given voltage at acceptor boundary
-    biasValues = range(0, stop = maxBias, length = 32) 
+    maxBias = 1.5 * V #voltageAcceptor # bias goes until the given voltage at acceptor boundary
+    biasValues = range(0, stop = maxBias, length = 50) # length = 32 
     IV = zeros(0)
 
     for Δu in biasValues
@@ -373,6 +373,12 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
         ## get I-V data
         current = get_current_val(ctsys, solution)
 
+        #= === DIAGNOSTIC OUTPUT ===
+        T_phys = solution[data.index_T, :] * params.temperature
+        println("  Current: ", current, " A/cm³")
+        println("  Max T: ", maximum(T_phys), " K, Min T: ", minimum(T_phys), " K")
+        # === END DIAGNOSTIC ===
+        =#
         push!(IV, abs.(w_device * z_device * (current)))
 
     end # bias loop
@@ -393,7 +399,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
         plot_IV!(vis[4, 2], biasValues, IV, "IV curve for applied voltage Δu = $(biasValues[end])", plotGridpoints = true)
         plot_temperature!(vis[5, 1], ctsys, solution, "Temperature for applied voltage Δu = $(biasValues[end])"; plotGridpoints = true)
         plot_temperatureFlux!(vis[5, 2], ctsys, solution, "Temperature flux for applied voltage Δu = $(biasValues[end])"; plotGridpoints = true)
-
+      #  plot_jouleHeating!(vis[6, 1], ctsys, solution, "Joule heating for applied voltage Δu = $(biasValues[end])"; plotGridpoints = true)
         reveal(vis)
     end
 
