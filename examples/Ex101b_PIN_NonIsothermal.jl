@@ -170,10 +170,13 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
         bulk_recomb_radiative = true,
         bulk_recomb_SRH = true
     )
+    # Steffi: set FermiDiracOneHalfTeSCA for checkig DiffusionEnhanced implementation
+    data.F = [FermiDiracOneHalfBednarczyk, FermiDiracOneHalfBednarczyk]
 
     # Steffi: set flux approximation to test the non-isothermal model and jouleHeating
-    data.fluxApproximation[iphin] = ScharfetterGummel # DiffusionEnhanced # 
-    data.fluxApproximation[iphip] = ScharfetterGummel # DiffusionEnhanced #  
+    data.fluxApproximation[iphin] = DiffusionEnhanced #  ScharfetterGummel # 
+    data.fluxApproximation[iphip] = DiffusionEnhanced # ScharfetterGummel #   
+
 
     data.ohmicContactModel = OhmicContactDirichlet # OhmicContactRobin
 

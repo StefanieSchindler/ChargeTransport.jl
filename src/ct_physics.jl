@@ -83,8 +83,50 @@ function temperatureLogmean(u, data, ::Type{NonIsothermal})
     return logmean(u[data.index_T, 1], u[data.index_T, 2]) * data.params.temperature # returns physical temperature since u[data.index_T, k] is dimensionless
 end
 
+###### auxillary functions #########
+
+
+"""
+$(TYPEDSIGNATURES)
+
+Compute the edge-averaged diffusion enhancement factor for flux schemes g = (eta2 - eta1) / (log F(eta2) - log F(eta1))
+with regularization for the singular case. For Boltzmann statistics, this is g = 1.
+"""
+#= 
+# this is the old version how it was implemented in the code
+    if isapprox(log(data.F[icc](etal)) - log(data.F[icc](etak)), 0.0, atol = 1e-5) # regularization idea coming from Pietra-Jüngel scheme
+        gk = exp(etak) / data.F[icc](etak)
+        gl = exp(etal) / data.F[icc](etal)
+        g = 0.5 * (gk + gl)
+    else
+        g = (etal - etak) / (log(data.F[icc](etal)) - log(data.F[icc](etak)))
+    end
+
+ =#
+
+
+function diffusion_enhancement_edge(F::Function, eta1::Real, eta2::Real; dF = nothing)
+    F === Boltzmann && return 1.0
+
+    logF1 = log(F(eta1))
+    logF2 = log(F(eta2))
+    
+    if isapprox(logF2 - logF1, 0.0, atol = 1e-5)
+        if dF === nothing
+            dF = x -> ForwardDiff.derivative(F, x)
+        end
+        g1 = F(eta1) / dF(eta1)
+        g2 = F(eta2) / dF(eta2)
+        g = 0.5 * (g1 + g2)
+    else
+        g = (eta2 - eta1) / (logF2 - logF1)
+    end
+    return g
+end
+
 ##########################################################
 ##########################################################
+
 
 """
 $(TYPEDSIGNATURES)
@@ -481,8 +523,8 @@ function breaction!(f, u, bnode, data, ::Type{OhmicContactRobin})
     if bnode.region == 2
         temperature_bc!(f, u, bnode, data)
     else 
-      # boundary_dirichlet!(f,u, bnode, species = data.index_T, region = bnode.region, value = 1.0)
-        temperature_bc!(f, u, bnode, data)
+       boundary_dirichlet!(f,u, bnode, species = data.index_T, region = bnode.region, value = 1.0)
+      #  temperature_bc!(f, u, bnode, data)
     end
 
     return
@@ -529,8 +571,8 @@ function breaction!(f, u, bnode, data, ::Type{OhmicContactDirichlet})
      #   boundary_dirichlet!(f,u, bnode, species = data.index_T, region = bnode.region, value = 1.0)
         temperature_bc!(f, u, bnode, data)
     else 
-      #  boundary_dirichlet!(f,u, bnode, species = data.index_T, region = bnode.region, value = 1.0)
-        temperature_bc!(f, u, bnode, data)
+        boundary_dirichlet!(f,u, bnode, species = data.index_T, region = bnode.region, value = 1.0)
+      #  temperature_bc!(f, u, bnode, data)
     end
     return
 
@@ -892,6 +934,10 @@ function reaction!(f, u, node, data, ::Type{InEquilibrium})
 
             f[icc] = u[icc]
         end
+    end
+
+    if data.temperatureModel == NonIsothermal
+        f[data.index_T] = u[data.index_T] # Stabilization necessary??
     end
     return
 end
@@ -1364,13 +1410,8 @@ function get_SeebeckCoefficient(u, edge, data, icc, ::Type{DiffusionEnhanced})
 
     etak, etal = etaFunction!(u, edge, data, icc)
 
-    if isapprox(log(data.F[icc](etal)) - log(data.F[icc](etak)), 0.0, atol = 1e-5) # regularization idea coming from Pietra-Jüngel scheme
-        gk = exp(etak) / data.F[icc](etak)
-        gl = exp(etal) / data.F[icc](etal)
-        g = 0.5 * (gk + gl)
-    else
-        g = (etal - etak) / (log(data.F[icc](etal)) - log(data.F[icc](etak)))
-    end
+    g = diffusion_enhancement_edge(data.F[icc], etak, etal)
+
     # Seebeck coefficient at edge times (Tl - Tk)
     PccΔT  = - k_B / q * (log(Ncc(Tl) / Ncc(Tk)) * g * T - ((Tl - T) * etal - (Tk - T) * etak)  - 1/k_B * (Ecc(Tl) - Ecc(Tk)))
 
@@ -1414,7 +1455,7 @@ end
     return Jcc
 end
 
-# The following (and DiffusionEnhanced in general) is not running! Also in the isothermal case, it is not running.
+
 function compute_chargeCarrierFluxValue(u, edge, data, icc, ::Type{DiffusionEnhanced})
     params = data.params
     paramsnodal = data.paramsnodal
@@ -1433,14 +1474,8 @@ function compute_chargeCarrierFluxValue(u, edge, data, icc, ::Type{DiffusionEnha
     etak, etal = etaFunction!(u, edge, data, icc) # calls etaFunction!(u, edge::VoronoiFVM.Edge, data, icc)
 
 
-    if isapprox(log(data.F[icc](etal)) - log(data.F[icc](etak)), 0.0, atol = 1e-5) # regularization idea coming from Pietra-Jüngel scheme
-        gk = exp(etak) / data.F[icc](etak)
-        gl = exp(etal) / data.F[icc](etal)
-        g = 0.5 * (gk + gl)
-    else
-        g = (etal - etak) / (log(data.F[icc](etal)) - log(data.F[icc](etak)))
-    end
-    
+    g = diffusion_enhancement_edge(data.F[icc], etak, etal)
+
     j0 = (k_B * T / q) * params.mobility[icc, ireg] * g
 
     bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * T * g))
@@ -1474,8 +1509,8 @@ function jouleHeating!(f, u, edge, data)
 
     # following Kantner 2020, eq. (27a) with the modification that every summand of Seebeck coefficient is multiplied with (TL-TK)
     # and both summands are divided by T 
-   # f[iT] = f[iT] + Jn * ((u[iphin, 2] - u[iphin, 1]) + PnΔT) / params.temperature #
-  #  f[iT] = f[iT] + Jp * ((u[iphip, 2] - u[iphip, 1]) + PpΔT) / params.temperature
+    f[iT] = f[iT] + Jn * ((u[iphin, 2] - u[iphin, 1]) + PnΔT) / params.temperature #
+    f[iT] = f[iT] + Jp * ((u[iphip, 2] - u[iphip, 1]) + PpΔT) / params.temperature
    return nothing
 end
 
@@ -1803,14 +1838,8 @@ function chargeCarrierFlux!(f, u, edge, data, icc, ::Type{DiffusionEnhanced})
 
     etak, etal = etaFunction!(u, edge, data, icc) # calls etaFunction!(u, edge::VoronoiFVM.Edge, data, icc)
 
+    g = diffusion_enhancement_edge(data.F[icc], etak, etal)
 
-    if isapprox(log(data.F[icc](etal)) - log(data.F[icc](etak)), 0.0, atol = 1e-5) # # regularization idea coming from Pietra-Jüngel scheme
-        gk = exp(etak) / data.F[icc](etak)
-        gl = exp(etal) / data.F[icc](etal)
-        g = 0.5 * (gk + gl)
-    else
-        g = (etal - etak) / (log(data.F[icc](etal)) - log(data.F[icc](etak)))
-    end
 
     j0 = (k_B * T / q) * params.mobility[icc, ireg] * g
 
@@ -1844,13 +1873,7 @@ function chargeCarrierFlux!(f, u, edge, data, icc, ::Type{DiffusionEnhancedModif
 
     etak, etal = etaFunction!(u, edge, data, icc) # calls etaFunction!(u, edge::VoronoiFVM.Edge, data, icc)
 
-    if isapprox(log(data.F[icc](etal)) - log(data.F[icc](etak)), 0.0, atol = 1e-5) # regularization idea coming from Pietra-Jüngel scheme
-        gk = exp(etak) / data.F[icc](etak)
-        gl = exp(etal) / data.F[icc](etal)
-        g = 0.5 * (gk + gl)
-    else
-        g = (etal - etak) / (log(data.F[icc](etal)) - log(data.F[icc](etak)))
-    end
+    g = diffusion_enhancement_edge(data.F[icc], etak, etal)
 
     j0 = (k_B * T / q) * params.mobility[icc, ireg]
 
