@@ -1127,7 +1127,7 @@ mutable struct Data{TFuncs <: Function, TVoltageFunc <: Function, TGenerationDat
     A DataType for the joule heating term.
     """
 
-    JouleHeatingModel::JouleHeatingModel
+    jouleHeatingModel::JouleHeatingModel
 
     """
     A DataType for for generation model.
@@ -1304,7 +1304,7 @@ function Data(grid, numberOfCarriers; constants = ChargeTransport.constants, con
     data.calculationType = OutOfEquilibrium      # do performances InEquilibrium or OutOfEquilibrium
     data.modelType = Stationary                  # indicates if we need additional time dependent part
     data.temperatureModel = Isothermal           # indicates if we have an isothernal or non-isothermal simulation #Steffi
-    data.JouleHeatingModel = JouleHeatingOff      # indicates if we have a joule heating term in the energy balance equation
+    data.jouleHeatingModel = JouleHeatingOff      # indicates if we have a joule heating term in the energy balance equation
     data.generationModel = GenerationNone        # generation model
     data.λ1 = 1.0                   # λ1: embedding parameter for NLP
     data.λ2 = 1.0                   # λ2: embedding parameter for G
