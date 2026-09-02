@@ -1480,11 +1480,11 @@ function compute_chargeCarrierFluxValue(u, edge, data, icc, ::Type{DiffusionEnha
     return Jcc
 end
 
-jouleHeating!(f, u, edge, data) = jouleHeating!(f, u, edge, data, data.jouleHeatingModel)
+jouleHeating!(f, u, edge, data) = jouleHeating!(f, u, edge, data, data.JouleHeatingModel)
 
-jouleHeating!(f, u, edge, data, ::Type{jouleHeatingOff}) = emptyFunction()
+jouleHeating!(f, u, edge, data, ::Type{JouleHeatingOff}) = emptyFunction()
 
-function jouleHeating!(f, u, edge, data, ::Type{jouleHeatingKantner2020})
+function jouleHeating!(f, u, edge, data, ::Type{JouleHeatingKantner2020})
     params = data.params
     iT = data.index_T
 
@@ -1511,7 +1511,7 @@ function jouleHeating!(f, u, edge, data, ::Type{jouleHeatingKantner2020})
 end
 
 
-function jouleHeating!(f, u, edge, data, ::Type{jouleHeatingDefinition})
+function jouleHeating!(f, u, edge, data, ::Type{JouleHeatingDefinition})
     params = data.params
     iT = data.index_T
 

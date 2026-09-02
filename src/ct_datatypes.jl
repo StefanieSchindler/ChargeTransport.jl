@@ -357,19 +357,19 @@ const TemperatureModel = Union{Type{Isothermal}, Type{NonIsothermal}}
 $(TYPEDEF)
 Abstract type for joule heating model according to Kantner 2020.
 """
-abstract type jouleHeatingKantner2020 end
+abstract type JouleHeatingKantner2020 end
 
 """
 $(TYPEDEF)
 Abstract type for joule heating model according to the definition in literature.
 """
-abstract type jouleHeatingDefinition end
+abstract type JouleHeatingDefinition end
 
 """
 $(TYPEDEF)
 Abstract type for no joule heating model.
 """
-abstract type jouleHeatingOff end
+abstract type JouleHeatingOff end
 
 
 
@@ -377,4 +377,4 @@ abstract type jouleHeatingOff end
 """
 Possible types for jouleHeating models.
 """
-const jouleHeatingModel = Union{Type{jouleHeatingKantner2020}, Type{jouleHeatingDefinition}, Type{jouleHeatingOff}}
+const JouleHeatingModel = Union{Type{JouleHeatingKantner2020}, Type{JouleHeatingDefinition}, Type{JouleHeatingOff}}

@@ -160,7 +160,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     ## Following variable declares, if we want to solve isothermal or non-isothermal problem
     data.temperatureModel = NonIsothermal
 
-    data.jouleHeatingModel = jouleHeatingKantner2020 #jouleHeatingDefinition #jouleHeatingOff
+    data.JouleHeatingModel = JouleHeatingKantner2020 #JouleHeatingDefinition #JouleHeatingOff
 
 
 
