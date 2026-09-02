@@ -519,13 +519,7 @@ function breaction!(f, u, bnode, data, ::Type{OhmicContactRobin})
     boundary_dirichlet!(f, u, bnode, species = iphin, region = bnode.region, value = Δu)
     boundary_dirichlet!(f, u, bnode, species = iphip, region = bnode.region, value = Δu)
 
-
-    if bnode.region == 2
-        temperature_bc!(f, u, bnode, data)
-    else 
-       boundary_dirichlet!(f,u, bnode, species = data.index_T, region = bnode.region, value = 1.0)
-      #  temperature_bc!(f, u, bnode, data)
-    end
+    temperature_bc!(f, u, bnode, data)
 
     return
 
@@ -568,8 +562,8 @@ function breaction!(f, u, bnode, data, ::Type{OhmicContactDirichlet})
     boundary_dirichlet!(f, u, bnode, species = ipsi, region = bnode.region, value = ψ0 + Δu)
 
     if bnode.region == 2
-     #   boundary_dirichlet!(f,u, bnode, species = data.index_T, region = bnode.region, value = 1.0)
-        temperature_bc!(f, u, bnode, data)
+        boundary_dirichlet!(f,u, bnode, species = data.index_T, region = bnode.region, value = 1.0)
+      #  temperature_bc!(f, u, bnode, data)
     else 
         boundary_dirichlet!(f,u, bnode, species = data.index_T, region = bnode.region, value = 1.0)
       #  temperature_bc!(f, u, bnode, data)
@@ -1486,10 +1480,11 @@ function compute_chargeCarrierFluxValue(u, edge, data, icc, ::Type{DiffusionEnha
     return Jcc
 end
 
+jouleHeating!(f, u, edge, data) = jouleHeating!(f, u, edge, data, data.jouleHeatingModel)
 
+jouleHeating!(f, u, edge, data, ::Type{jouleHeatingOff}) = emptyFunction()
 
-
-function jouleHeating!(f, u, edge, data)
+function jouleHeating!(f, u, edge, data, ::Type{jouleHeatingKantner2020})
     params = data.params
     iT = data.index_T
 
@@ -1511,7 +1506,41 @@ function jouleHeating!(f, u, edge, data)
     # and both summands are divided by T 
     f[iT] = f[iT] + Jn * ((u[iphin, 2] - u[iphin, 1]) + PnΔT) / params.temperature #
     f[iT] = f[iT] + Jp * ((u[iphip, 2] - u[iphip, 1]) + PpΔT) / params.temperature
-   return nothing
+
+    return nothing
+end
+
+
+function jouleHeating!(f, u, edge, data, ::Type{jouleHeatingDefinition})
+    params = data.params
+    iT = data.index_T
+
+    iphin = data.bulkRecombination.iphin
+    iphip = data.bulkRecombination.iphip
+
+    iphin = data.chargeCarrierList[iphin]
+    iphip = data.chargeCarrierList[iphip]
+
+    # returns the Seebeck coefficient times the temperature difference between the two nodes
+    PnΔT = get_SeebeckCoefficient(u, edge, data, iphin, data.fluxApproximation[iphin])
+    PpΔT = get_SeebeckCoefficient(u, edge, data, iphip, data.fluxApproximation[iphip])
+
+    Jn = compute_chargeCarrierFluxValue(u, edge, data, iphin, data.fluxApproximation[iphin])
+    Jp = compute_chargeCarrierFluxValue(u, edge, data, iphip, data.fluxApproximation[iphip])
+
+    n_k, n_l = get_density!(u, edge, data, iphin)
+    p_k, p_l = get_density!(u, edge, data, iphip)
+    
+    n_avg = ForwardDiff.value(logmean(n_k, n_l))
+    p_avg = ForwardDiff.value(logmean(p_k,p_l))
+    q = data.constants.q
+    Jn_val = ForwardDiff.value(Jn)
+    Jp_val = ForwardDiff.value(Jp)
+    n_val, p_val = ForwardDiff.value(n_avg), ForwardDiff.value(p_avg)
+ 
+    f[iT] = f[iT] - (Jn_val * Jn_val) / (q * params.mobility[iphin, edge.region] * n_val * params.temperature) - (Jp_val * Jp_val) / (q * params.mobility[iphip, edge.region] * p_val * params.temperature) 
+   
+    return nothing
 end
 
 #=

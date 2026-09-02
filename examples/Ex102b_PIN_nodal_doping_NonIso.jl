@@ -131,9 +131,13 @@ function main(; Plotter = nothing, verbose = false, test = false, unknown_storag
         bulk_recomb_SRH = true
     )
 
+    # Steffi: set FermiDiracOneHalf for checkig DiffusionEnhanced implementation
+    data.F = [FermiDiracOneHalfBednarczyk, FermiDiracOneHalfBednarczyk]
+
     # Steffi: set flux approximation to test the non-isothermal model and jouleHeating
-    data.fluxApproximation[iphin] = ScharfetterGummel # DiffusionEnhanced # 
-    data.fluxApproximation[iphip] = ScharfetterGummel # DiffusionEnhanced #  
+    data.fluxApproximation[iphin] = DiffusionEnhanced #  ScharfetterGummel # 
+    data.fluxApproximation[iphip] = DiffusionEnhanced # ScharfetterGummel #  
+
 
     ## Possible choices: OhmicContact, SchottkyContact (outer boundary) and InterfaceNone,
     ## InterfaceRecombination (inner boundary).
@@ -227,11 +231,11 @@ function main(; Plotter = nothing, verbose = false, test = false, unknown_storag
     control = SolverControl()
     control.verbose = verbose
     control.maxiters = 200 # 50
-    control.abstol = 1.0e-8 # 1.0e-14
-    control.reltol = 1.0e-8 #1.0e-14
-    control.tol_round = 1.0e-4 #1.0e-8
-    control.damp_initial = 0.5 #0.5
-    control.max_round = 5 # 3
+    control.abstol = 1.0e-10 # 1.0e-14
+    control.reltol = 1.0e-10 #1.0e-14
+    control.tol_round = 1.0e-6 #1.0e-8
+    control.damp_initial = 0.3 #0.5
+    control.max_round = 10 # 3
 
  
 
@@ -257,7 +261,7 @@ function main(; Plotter = nothing, verbose = false, test = false, unknown_storag
         inival_eq[data.index_T, :] .= T/data.params.temperature # constant initial guess for temperature
     end
 
-    solution = equilibrium_solve!(ctsys, inival = inival_eq, control = control, nonlinear_steps = 70.0) #41
+    solution = equilibrium_solve!(ctsys, inival = inival_eq, control = control, nonlinear_steps = 200.0) #41
     inival = solution
 
 

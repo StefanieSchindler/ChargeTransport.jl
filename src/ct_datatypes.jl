@@ -327,7 +327,7 @@ const BarrierLoweringType = Union{Type{BarrierLoweringOn}, Type{BarrierLoweringO
 ##########################################################
 ##########################################################
 
-##### temperature dependence #######  #Steffi
+##### temperature models ####### 
 
 """
 $(TYPEDEF)
@@ -346,3 +346,35 @@ abstract type NonIsothermal end
 Possible types for temperature models.
 """
 const TemperatureModel = Union{Type{Isothermal}, Type{NonIsothermal}}
+
+
+#########################################################
+#########################################################
+
+##### jouleHeating models #######
+
+"""
+$(TYPEDEF)
+Abstract type for joule heating model according to Kantner 2020.
+"""
+abstract type jouleHeatingKantner2020 end
+
+"""
+$(TYPEDEF)
+Abstract type for joule heating model according to the definition in literature.
+"""
+abstract type jouleHeatingDefinition end
+
+"""
+$(TYPEDEF)
+Abstract type for no joule heating model.
+"""
+abstract type jouleHeatingOff end
+
+
+
+##########################################################
+"""
+Possible types for jouleHeating models.
+"""
+const jouleHeatingModel = Union{Type{jouleHeatingKantner2020}, Type{jouleHeatingDefinition}, Type{jouleHeatingOff}}

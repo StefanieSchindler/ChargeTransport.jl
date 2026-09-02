@@ -70,6 +70,7 @@ export OhmicContactModelType, OhmicContactDirichlet, OhmicContactRobin
 
 export ModelType, Transient, Stationary
 export TemperatureModel, Isothermal, NonIsothermal #Steffi
+export jouleHeatingModel, jouleHeatingOff, jouleHeatingKantner2020, jouleHeatingDefinition #Steffi
 
 export FluxApproximationType
 export ScharfetterGummel, ExcessChemicalPotential, DiffusionEnhanced, DiffusionEnhancedModifiedDrift, GeneralizedSG

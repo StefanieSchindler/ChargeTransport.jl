@@ -160,6 +160,8 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     ## Following variable declares, if we want to solve isothermal or non-isothermal problem
     data.temperatureModel = NonIsothermal
 
+    data.jouleHeatingModel = jouleHeatingKantner2020 #jouleHeatingDefinition #jouleHeatingOff
+
 
 
     ## Here, we need to specify which numbers are associated with electron and hole quasi
@@ -170,7 +172,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
         bulk_recomb_radiative = true,
         bulk_recomb_SRH = true
     )
-    # Steffi: set FermiDiracOneHalfTeSCA for checkig DiffusionEnhanced implementation
+    # Steffi: set FermiDiracOneHalf for checkig DiffusionEnhanced implementation
     data.F = [FermiDiracOneHalfBednarczyk, FermiDiracOneHalfBednarczyk]
 
     # Steffi: set flux approximation to test the non-isothermal model and jouleHeating
@@ -291,7 +293,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
         println("*** done\n")
     end
 
-    if Plotter !== nothing
+    if false #Plotter !== nothing #Steffi: set to false for not plotting the equilibrium solution to better see the temperature plots
         ################################################################################
         println("Plot electroneutral potential, band-edge energies and doping")
         ################################################################################
@@ -391,10 +393,13 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     end
 
     ## plot solution and IV curve
+    #=
     if Plotter !== nothing
         ################################################################################
         println("Plot results")
         ################################################################################
+
+        label_solution, label_density, label_energy, label_BEE = set_plotting_labels(data)
 
         plot_energies!(vis[3, 1], ctsys, solution, "Energies for applied voltage Δu = $(biasValues[end])", label_energy; plotGridpoints = true)
         plot_solution!(vis[3, 2], ctsys, solution, "Solution for applied voltage Δu = $(biasValues[end])", label_solution; plotGridpoints = true)
@@ -405,6 +410,24 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
       #  plot_jouleHeating!(vis[6, 1], ctsys, solution, "Joule heating for applied voltage Δu = $(biasValues[end])"; plotGridpoints = true)
         reveal(vis)
     end
+    =#
+    if Plotter !== nothing
+        ################################################################################
+        println("Plot results")
+        ################################################################################
+
+        label_solution, label_density, label_energy, label_BEE = set_plotting_labels(data)
+
+        plot_energies!(vis[1, 2], ctsys, solution, "Energies for applied voltage Δu = $(biasValues[end])", label_energy; plotGridpoints = true)
+        plot_solution!(vis[2, 1], ctsys, solution, "Solution for applied voltage Δu = $(biasValues[end])", label_solution; plotGridpoints = true)
+        plot_densities!(vis[2, 2], ctsys, solution, "Carrier densities for applied voltage Δu = $(biasValues[end])", label_density, plotGridpoints = true)
+      #  plot_IV!(vis[4, 2], biasValues, IV, "IV curve for applied voltage Δu = $(biasValues[end])", plotGridpoints = true)
+        plot_temperature!(vis[3, 1], ctsys, solution, "Temperature for applied voltage Δu = $(biasValues[end])"; plotGridpoints = true)
+        plot_temperatureFlux!(vis[3, 2], ctsys, solution, "Temperature flux for applied voltage Δu = $(biasValues[end])"; plotGridpoints = true)
+      #  plot_jouleHeating!(vis[6, 1], ctsys, solution, "Joule heating for applied voltage Δu = $(biasValues[end])"; plotGridpoints = true)
+        reveal(vis)
+    end
+
 
 
     testval = solution[15]
