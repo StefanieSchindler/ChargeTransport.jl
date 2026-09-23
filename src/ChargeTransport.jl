@@ -77,7 +77,7 @@ export ScharfetterGummel, ExcessChemicalPotential, DiffusionEnhanced, DiffusionE
 export ScharfetterGummelGraded, ExcessChemicalPotentialGraded
 export ExcessChemicalPotentialDiffusive, ConcentrationGradient, DensityProduct
 
-export InEquilibrium, OutOfEquilibrium
+export InEquilibrium, OutOfEquilibrium    
 
 export GenerationModelType
 export GenerationNone, GenerationBeerLambert, GenerationUniform, GenerationUserDefined

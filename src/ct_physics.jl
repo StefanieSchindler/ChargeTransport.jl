@@ -398,7 +398,14 @@ function get_density(sol, data, icc, ireg, ; inode)
     E = data.params.bandEdgeEnergy[icc, ireg]
     z = data.params.chargeNumbers[icc]
 
-    #Steffi
+    #= if NonIsothermal, use temperature from solution vector, else data.params.temperature
+    if data.temperatureModel == NonIsothermal
+        T = sol[data.index_T, inode] * data.params.temperature
+    else
+        T = data.params.temperature
+    end
+    =#
+
     eta = etaFunction(sol[data.index_psi, inode], sol[icc, inode], sol[data.index_T, inode], E, z, data.constants)
 
     return N .* data.F[icc].(eta)
@@ -561,13 +568,8 @@ function breaction!(f, u, bnode, data, ::Type{OhmicContactDirichlet})
     boundary_dirichlet!(f, u, bnode, species = iphip, region = bnode.region, value = Δu)
     boundary_dirichlet!(f, u, bnode, species = ipsi, region = bnode.region, value = ψ0 + Δu)
 
-    if bnode.region == 2
-        boundary_dirichlet!(f,u, bnode, species = data.index_T, region = bnode.region, value = 1.0)
-      #  temperature_bc!(f, u, bnode, data)
-    else 
-        boundary_dirichlet!(f,u, bnode, species = data.index_T, region = bnode.region, value = 1.0)
-      #  temperature_bc!(f, u, bnode, data)
-    end
+    temperature_bc!(f, u, bnode, data)
+
     return
 
 end
@@ -803,9 +805,15 @@ function temperature_bc!(f, u, bnode, data, ::Type{NonIsothermal})
     params = data.params
     iT = data.index_T
     T_env = params.boundaryAmbientTemp[bnode.region] / params.temperature
-        
-    h = 100.0
-    f[iT] = f[iT] + h * (u[iT] - T_env)
+    
+    if bnode.region == 2
+        boundary_dirichlet!(f,u, bnode, species = iT, region = bnode.region, value = T_env)
+    else 
+        boundary_dirichlet!(f,u, bnode, species = iT, region = bnode.region, value = T_env)
+    end
+
+   # h = 1.0
+   # f[iT] = f[iT] + h * (u[iT] - T_env)
 
     #=
     T_env = params.boundaryAmbientTemp[bnode.region] / data.params.temperature
@@ -930,9 +938,6 @@ function reaction!(f, u, node, data, ::Type{InEquilibrium})
         end
     end
 
-    if data.temperatureModel == NonIsothermal
-        f[data.index_T] = u[data.index_T] # Stabilization necessary??
-    end
     return
 end
 
@@ -1002,6 +1007,7 @@ function addRecombination!(f, u, node, data)
     # based on user index and regularity of solution quantities or integers are used and depicted here
     iphin = data.chargeCarrierList[iphin]
     iphip = data.chargeCarrierList[iphip]
+
 
     n = get_density!(u, node, data, iphin)
     p = get_density!(u, node, data, iphip)
@@ -1629,10 +1635,11 @@ end
 function flux!(f, u, edge, data, ::Type{InEquilibrium})
     ## discretization of the displacement flux (LHS of Poisson equation)
     displacementFlux!(f, u, edge, data)
-
     heatFlux!(f, u, edge, data)
+
     return
 end
+
 
 function flux!(f, u, edge, data, ::Type{OutOfEquilibrium})
 
@@ -1996,15 +2003,15 @@ heatFlux!(f, u, edge, data) = heatFlux!(f, u, edge, data, data.temperatureModel)
 
 
 # Isothermal case: no heat flux
-function heatFlux!(f, u, edge, data, ::Type{Isothermal})
-    return nothing
-end
+heatFlux!(f, u, edge, data, ::Type{Isothermal}) = emptyFunction()
+
 
 # Non-isothermal case: compute heat flux
 function heatFlux!(f, u, edge, data, ::Type{NonIsothermal})
     iT = data.index_T
     params = data.params
     f[iT] = - params.thermalConductivity * (u[iT, 2] - u[iT, 1]) 
+
     return nothing
 end
 

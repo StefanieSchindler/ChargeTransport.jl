@@ -359,7 +359,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     ################################################################################
 
     println("calculationType: ", ctsys.fvmsys.physics.data.calculationType)
-    maxBias = 1.5 * V #voltageAcceptor # bias goes until the given voltage at acceptor boundary
+    maxBias = voltageAcceptor # bias goes until the given voltage at acceptor boundary
     biasValues = range(0, stop = maxBias, length = 50) # length = 32 
     IV = zeros(0)
 
@@ -378,12 +378,6 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
         ## get I-V data
         current = get_current_val(ctsys, solution)
 
-        #= === DIAGNOSTIC OUTPUT ===
-        T_phys = solution[data.index_T, :] * params.temperature
-        println("  Current: ", current, " A/cm³")
-        println("  Max T: ", maximum(T_phys), " K, Min T: ", minimum(T_phys), " K")
-        # === END DIAGNOSTIC ===
-        =#
         push!(IV, abs.(w_device * z_device * (current)))
 
     end # bias loop

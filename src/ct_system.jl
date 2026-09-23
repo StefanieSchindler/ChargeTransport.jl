@@ -339,6 +339,7 @@ mutable struct Params
     """
     numberOfCarriers::Int64
 
+
     """
     Parameter for the direction of illumination. If illumination is coming from the left,
     then set this value to 1. Otherwise, if the illumination comes from the right,
@@ -1080,6 +1081,10 @@ mutable struct Data{TFuncs <: Function, TVoltageFunc <: Function, TGenerationDat
     """
     trapCarrierList::Array{TrapCarrier, 1}
 
+    ###############################################################
+    ####              Species indexing information             ####
+    ###############################################################
+
 
     """
     This variable stores the index of the electric potential. Based on the user choice we have
@@ -1098,6 +1103,15 @@ mutable struct Data{TFuncs <: Function, TVoltageFunc <: Function, TGenerationDat
     This is a struct containing all information necessary to simulate Schottky Barrier Lowering.
     """
     barrierLoweringInfo::BarrierLoweringSpecies
+
+
+    """
+    Total number of all species of the system: carriers (incl. ions/traps), psi,
+    barrier-lowering species if active, and temperature if NonIsothermal.
+    Set automatically in build_system.
+    """
+    totalNumberOfSpecies::Int64
+
 
     ###############################################################
     ####                 Numerics information                  ####
@@ -1289,7 +1303,8 @@ function Data(grid, numberOfCarriers; constants = ChargeTransport.constants, con
     data.electricCarrierList = Int64[ii for ii in 1:2]                       # electrons and holes
     data.ionicCarrierList = IonicCarrier[]
     data.trapCarrierList = TrapCarrier[]
-    data.index_psi = numberOfCarriers + 1
+    data.totalNumberOfSpecies = numberOfCarriers + 1
+    data.index_psi = data.totalNumberOfSpecies  
     # data.index_T = data.index_psi + 1 #Steffi: index_T is set in build_system, because it depends on whether temperatureModel is Isothermal or NonIsothermal
     data.barrierLoweringInfo = BarrierLoweringSpecies()
     data.barrierLoweringInfo.BarrierLoweringOn = BarrierLoweringOff # set in general case barrier lowering off
@@ -1493,13 +1508,33 @@ function build_system(grid, data, ::Type{ContQF}; kwargs...)
     # continuous case = integer indexing
     data.chargeCarrierList = collect(1:data.params.numberOfCarriers)
     # data.electricCarrierList = [iphin, iphip]
-    num_species_sys = data.params.numberOfCarriers + 1
-    data.index_psi = num_species_sys
+    numberOfSpecies_counter = data.params.numberOfCarriers
+    # add electrostatic potential as a species
+    data.index_psi = numberOfSpecies_counter + 1
+    numberOfSpecies_counter += 1
 
-    # add temperature as a species if non-isothermal model is chosen #Steffi
+    # add barrier lowering species if applicable
+    if data.barrierLoweringInfo.BarrierLoweringOn == BarrierLoweringOn
+        data.barrierLoweringInfo.ipsiStandard = numberOfSpecies_counter + 1
+        data.barrierLoweringInfo.ipsiGrad     = numberOfSpecies_counter + 2
+        numberOfSpecies_counter += 2
+        data.barrierLoweringInfo.breg = boundaryReg
+    end
+
+    # add temperature as a species if non-isothermal model is chosen 
     if data.temperatureModel == NonIsothermal
-        num_species_sys += 1
-        data.index_T = num_species_sys
+        data.index_T = numberOfSpecies_counter + 1
+        numberOfSpecies_counter += 1
+    end
+
+    data.totalNumberOfSpecies = numberOfSpecies_counter
+
+    # sanity check: no index may exceed the total number of species
+    if data.index_psi > data.totalNumberOfSpecies
+      error("index_psi = $(data.index_psi) exceeds totalNumberOfSpecies = $(data.totalNumberOfSpecies). Species counter in build_system is inconsistent.")
+    end
+    if data.temperatureModel == NonIsothermal && data.index_T != data.totalNumberOfSpecies
+      error("index_T = $(data.index_T) must be the last species (totalNumberOfSpecies = $(data.totalNumberOfSpecies)). Species order must be: carriers -> psi -> barrier lowering (if active) -> T (if NonIsothermal).")
     end
 
     ionicCarrierListHelp = Int64[]
@@ -1617,22 +1652,23 @@ function build_system(grid, data, ::Type{ContQF}; kwargs...)
     # barrier lowering conditions
     if data.barrierLoweringInfo.BarrierLoweringOn == BarrierLoweringOn
 
-        data.barrierLoweringInfo.ipsiStandard = data.index_psi + 1
-        data.barrierLoweringInfo.ipsiGrad = data.index_psi + 2
-        data.barrierLoweringInfo.breg = boundaryReg
+        # this is now already defined above when counting the indices
+       # data.barrierLoweringInfo.ipsiStandard = data.index_psi + 1
+       # data.barrierLoweringInfo.ipsiGrad = data.index_psi + 2
+       # data.barrierLoweringInfo.breg = boundaryReg
 
         enable_species!(ctsys, data.barrierLoweringInfo.ipsiStandard, 1:data.params.numberOfRegions)
         enable_boundary_species!(ctsys, data.barrierLoweringInfo.ipsiGrad, boundaryReg)
 
         # for detection of number of species
-        VoronoiFVM.increase_num_species!(ctsys.fvmsys, num_species_sys)
-
+        VoronoiFVM.increase_num_species!(ctsys.fvmsys, data.totalNumberOfSpecies)
         data.barrierLoweringInfo.idx = unknown_indices(unknowns(ctsys))
-
+    else 
+        # we need increase_num_species! before data.barrierLoweringInfo.idx = unknown_indices(unknowns(ctsys)) that's why we need the else case 
+         
+        # for detection of number of species
+        VoronoiFVM.increase_num_species!(ctsys.fvmsys, data.totalNumberOfSpecies)
     end
-
-    # for detection of number of species
-    VoronoiFVM.increase_num_species!(ctsys.fvmsys, num_species_sys)
 
     return ctsys
 
