@@ -11,7 +11,6 @@ function temperature(u, data)
     return temperature(u, data, data.temperatureModel)
 end
 
-
 """
 $(TYPEDSIGNATURES)
 
@@ -21,7 +20,6 @@ function temperature(u, data, ::Type{Isothermal})
     return data.params.temperature
 end
 
-
 """
 $(TYPEDSIGNATURES)
 
@@ -30,7 +28,6 @@ Returns the physical temperature as a solution variable from `u[data.index_T]` m
 function temperature(u, data, ::Type{NonIsothermal})
     return u[data.index_T] * data.params.temperature # returns physical temperature since u[data.index_T] is dimensionless
 end
-
 
 
 """
@@ -47,8 +44,6 @@ function logmean(a, b; rtol = 1e-6)
         return (a - b) / log(a / b)
     end
 end
-
-
 
 """
 $(TYPEDSIGNATURES)
@@ -126,6 +121,21 @@ end
 
 ##########################################################
 ##########################################################
+"""
+$(TYPEDSIGNATURES)
+
+A function to get the mobility which may depend on the temperature.
+"""
+# TODO: multiple dispatch on different models
+# β = 2.3 for GaAs
+function get_mobility(u, data, icc::QType, ireg::Int, edge::VoronoiFVM.Edge; β = 2.3) 
+    T = temperatureLogmean(u, data)                     # returns data.params.temperature in isothermal case, so we do not have to destinguish between isothermal and non-isothermal case
+    Tref = data.params.temperature
+  
+    return data.params.mobility[icc, ireg] * (Tref / T)^(-β) # returns data.params.mobility[icc, ireg] in isothermal case
+end
+
+
 
 
 """
@@ -806,21 +816,25 @@ function temperature_bc!(f, u, bnode, data, ::Type{NonIsothermal})
     iT = data.index_T
     T_env = params.boundaryAmbientTemp[bnode.region] / params.temperature
     
+    #=
     if bnode.region == 2
         boundary_dirichlet!(f,u, bnode, species = iT, region = bnode.region, value = T_env)
     else 
         boundary_dirichlet!(f,u, bnode, species = iT, region = bnode.region, value = T_env)
     end
-
-   # h = 1.0
-   # f[iT] = f[iT] + h * (u[iT] - T_env)
-
-    #=
-    T_env = params.boundaryAmbientTemp[bnode.region] / data.params.temperature
-    factor =  1.18
-    boundary_robin!(f, u, bnode, species = iT, region = bnode.region, factor = factor, value = factor * T_env)
-        
     =#
+
+   
+    h = 1.0e20
+    f[iT] = f[iT] + h * (u[iT] - T_env)
+    
+
+     #=
+    T_env = params.boundaryAmbientTemp[bnode.region] / data.params.temperature
+    factor =  1.0e7
+    boundary_robin!(f, u, bnode, species = iT, region = bnode.region, factor = factor, value = factor * T_env)
+       =# 
+    
     return
 end
 
@@ -1386,7 +1400,7 @@ function get_SeebeckCoefficient(u, edge, data, icc, ::Type{ScharfetterGummel})
 
     etak, etal = etaFunction!(u, edge, data, icc)
 
-    # Seebeck coefficient at edge times (Tl - Tk)
+    # Seebeck coefficient at edge times ΔT = (Tl - Tk)
     PccΔT = - k_B / q * (log(Ncc(Tl) / Ncc(Tk)) * T - ((Tl - T) * etal - (Tk - T) * etak)  - 1/k_B * (Ecc(Tl) - Ecc(Tk)))
     
     return PccΔT
@@ -1412,7 +1426,7 @@ function get_SeebeckCoefficient(u, edge, data, icc, ::Type{DiffusionEnhanced})
 
     g = diffusion_enhancement_edge(data.F[icc], etak, etal)
 
-    # Seebeck coefficient at edge times (Tl - Tk)
+    # Seebeck coefficient at edge times ΔT = (Tl - Tk)
     PccΔT  = - k_B / q * (log(Ncc(Tl) / Ncc(Tk)) * g * T - ((Tl - T) * etal - (Tk - T) * etak)  - 1/k_B * (Ecc(Tl) - Ecc(Tk)))
 
     return PccΔT
@@ -1444,8 +1458,9 @@ end
 
     dpsi = u[ipsi, 2] - u[ipsi, 1]
     bandEdgeDiff = paramsnodal.bandEdgeEnergy[icc, nodel] - paramsnodal.bandEdgeEnergy[icc, nodek]
-   
-    j0 = (k_B * T / q) * params.mobility[icc, ireg] 
+
+    μcc = data.params.mobility[icc, ireg]
+    j0 = (k_B * T / q) * μcc
 
     bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * T))
     ncck, nccl = get_density!(u, edge, data, icc)
@@ -1465,6 +1480,7 @@ function compute_chargeCarrierFluxValue(u, edge, data, icc, ::Type{DiffusionEnha
     nodek = edge.node[1]   # left node
     nodel = edge.node[2]   # right node
     ireg = edge.region
+
     (; k_B, q) = data.constants
     T = temperatureLogmean(u, data)
 
@@ -1476,7 +1492,8 @@ function compute_chargeCarrierFluxValue(u, edge, data, icc, ::Type{DiffusionEnha
 
     g = diffusion_enhancement_edge(data.F[icc], etak, etal)
 
-    j0 = (k_B * T / q) * params.mobility[icc, ireg] * g
+    μcc = data.params.mobility[icc, ireg]
+    j0 = (k_B * T / q) * μcc * g
 
     bp, bm = fbernoulli_pm(params.chargeNumbers[icc] * (dpsi * q - bandEdgeDiff) / (k_B * T * g))
     ncck, nccl = get_density!(u, edge, data, icc)
@@ -1510,26 +1527,24 @@ function jouleHeating!(f, u, edge, data, ::Type{JouleHeatingKantner2020})
 
     # following Kantner 2020, eq. (27a) with the modification that every summand of Seebeck coefficient is multiplied with (TL-TK)
     # and both summands are divided by T 
-    f[iT] = f[iT] + Jn * ((u[iphin, 2] - u[iphin, 1]) + PnΔT) / params.temperature #
+    f[iT] = f[iT] + Jn * ((u[iphin, 2] - u[iphin, 1]) + PnΔT) / params.temperature 
     f[iT] = f[iT] + Jp * ((u[iphip, 2] - u[iphip, 1]) + PpΔT) / params.temperature
 
     return nothing
 end
 
-
+# This joule heating function is based on the definition where H_J = 1/σ_n * ||J_n||^2 + 1/σ_p * ||J_p||^2 with σ_n = q * μ_n * n and σ_p = q * μ_p * p.
+# The idea is to have a function which can be compared with the joule heating function of Kantner 2020. It will probably be deleted in future.
 function jouleHeating!(f, u, edge, data, ::Type{JouleHeatingDefinition})
     params = data.params
     iT = data.index_T
+    (; q) = data.constants
 
     iphin = data.bulkRecombination.iphin
     iphip = data.bulkRecombination.iphip
 
     iphin = data.chargeCarrierList[iphin]
     iphip = data.chargeCarrierList[iphip]
-
-    # returns the Seebeck coefficient times the temperature difference between the two nodes
-    PnΔT = get_SeebeckCoefficient(u, edge, data, iphin, data.fluxApproximation[iphin])
-    PpΔT = get_SeebeckCoefficient(u, edge, data, iphip, data.fluxApproximation[iphip])
 
     Jn = compute_chargeCarrierFluxValue(u, edge, data, iphin, data.fluxApproximation[iphin])
     Jp = compute_chargeCarrierFluxValue(u, edge, data, iphip, data.fluxApproximation[iphip])
@@ -1539,12 +1554,9 @@ function jouleHeating!(f, u, edge, data, ::Type{JouleHeatingDefinition})
     
     n_avg = ForwardDiff.value(logmean(n_k, n_l))
     p_avg = ForwardDiff.value(logmean(p_k,p_l))
-    q = data.constants.q
-    Jn_val = ForwardDiff.value(Jn)
-    Jp_val = ForwardDiff.value(Jp)
-    n_val, p_val = ForwardDiff.value(n_avg), ForwardDiff.value(p_avg)
- 
-    f[iT] = f[iT] - (Jn_val * Jn_val) / (q * params.mobility[iphin, edge.region] * n_val * params.temperature) - (Jp_val * Jp_val) / (q * params.mobility[iphip, edge.region] * p_val * params.temperature) 
+
+    f[iT] = f[iT] - ForwardDiff.value(Jn)^2 / (q * params.mobility[iphin, edge.region] * ForwardDiff.value(n_avg) * params.temperature) 
+    f[iT] = f[iT] - ForwardDiff.value(Jp)^2 / (q * params.mobility[iphip, edge.region] * ForwardDiff.value(p_avg) * params.temperature)
    
     return nothing
 end

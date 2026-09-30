@@ -160,7 +160,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     ## Following variable declares, if we want to solve isothermal or non-isothermal problem
     data.temperatureModel = NonIsothermal
 
-    data.jouleHeatingModel = JouleHeatingKantner2020 #JouleHeatingDefinition #JouleHeatingOff
+    data.jouleHeatingModel = JouleHeatingDefinition #JouleHeatingKantner2020 #JouleHeatingDefinition #JouleHeatingOff
 
 
 
@@ -176,11 +176,11 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     data.F = [FermiDiracOneHalfBednarczyk, FermiDiracOneHalfBednarczyk]
 
     # Steffi: set flux approximation to test the non-isothermal model and jouleHeating
-    data.fluxApproximation[iphin] = DiffusionEnhanced #  ScharfetterGummel # 
-    data.fluxApproximation[iphip] = DiffusionEnhanced # ScharfetterGummel #   
+    data.fluxApproximation[iphin] = DiffusionEnhanced #  ScharfetterGummel #  
+    data.fluxApproximation[iphip] = DiffusionEnhanced #  ScharfetterGummel #   
 
 
-    data.ohmicContactModel = OhmicContactDirichlet # OhmicContactRobin
+    data.ohmicContactModel = OhmicContactDirichlet # OhmicContactRobin #
 
     ## Following choices are possible for boundary model: For contacts currently only
     ## OhmicContact and SchottkyContact are possible. For inner boundaries we have
@@ -320,7 +320,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     control.maxiters = 200 # 50
     control.abstol = 1.0e-8 # 1.0e-14
     control.reltol = 1.0e-8 #1.0e-14
-    control.tol_round = 1.0e-4 #1.0e-8
+    control.tol_round = 1.0e-8 
     control.damp_initial = 0.5 #0.5
     control.max_round = 5 # 3
 
@@ -345,7 +345,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
         inival_eq[data.index_T, :] .= T/data.params.temperature # constant initial guess for temperature
     end
 
-    solution = equilibrium_solve!(ctsys, inival = inival_eq, control = control, nonlinear_steps = 30.0)
+    solution = equilibrium_solve!(ctsys, inival = inival_eq, control = control, nonlinear_steps = 20.0)
     inival = solution
 
     
@@ -360,7 +360,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
 
     println("calculationType: ", ctsys.fvmsys.physics.data.calculationType)
     maxBias = voltageAcceptor # bias goes until the given voltage at acceptor boundary
-    biasValues = range(0, stop = maxBias, length = 50) # length = 32 
+    biasValues = range(0, stop = maxBias, length = 50) # length = 32
     IV = zeros(0)
 
     for Δu in biasValues
