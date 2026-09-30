@@ -1533,33 +1533,6 @@ function jouleHeating!(f, u, edge, data, ::Type{JouleHeatingKantner2020})
     return nothing
 end
 
-# This joule heating function is based on the definition where H_J = 1/σ_n * ||J_n||^2 + 1/σ_p * ||J_p||^2 with σ_n = q * μ_n * n and σ_p = q * μ_p * p.
-# The idea is to have a function which can be compared with the joule heating function of Kantner 2020. It will probably be deleted in future.
-function jouleHeating!(f, u, edge, data, ::Type{JouleHeatingDefinition})
-    params = data.params
-    iT = data.index_T
-    (; q) = data.constants
-
-    iphin = data.bulkRecombination.iphin
-    iphip = data.bulkRecombination.iphip
-
-    iphin = data.chargeCarrierList[iphin]
-    iphip = data.chargeCarrierList[iphip]
-
-    Jn = compute_chargeCarrierFluxValue(u, edge, data, iphin, data.fluxApproximation[iphin])
-    Jp = compute_chargeCarrierFluxValue(u, edge, data, iphip, data.fluxApproximation[iphip])
-
-    n_k, n_l = get_density!(u, edge, data, iphin)
-    p_k, p_l = get_density!(u, edge, data, iphip)
-    
-    n_avg = ForwardDiff.value(logmean(n_k, n_l))
-    p_avg = ForwardDiff.value(logmean(p_k,p_l))
-
-    f[iT] = f[iT] - ForwardDiff.value(Jn)^2 / (q * params.mobility[iphin, edge.region] * ForwardDiff.value(n_avg) * params.temperature) 
-    f[iT] = f[iT] - ForwardDiff.value(Jp)^2 / (q * params.mobility[iphip, edge.region] * ForwardDiff.value(p_avg) * params.temperature)
-   
-    return nothing
-end
 
 #=
 function thomsonPeltierHeating!(f, u, edge, data)

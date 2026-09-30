@@ -360,11 +360,6 @@ Abstract type for joule heating model according to Kantner 2020.
 """
 abstract type JouleHeatingKantner2020 end
 
-"""
-$(TYPEDEF)
-Abstract type for joule heating model according to the definition in literature.
-"""
-abstract type JouleHeatingDefinition end
 
 """
 $(TYPEDEF)
@@ -378,4 +373,4 @@ abstract type JouleHeatingOff end
 """
 Possible types for jouleHeating models.
 """
-const JouleHeatingModel = Union{Type{JouleHeatingKantner2020}, Type{JouleHeatingDefinition}, Type{JouleHeatingOff}}
+const JouleHeatingModel = Union{Type{JouleHeatingKantner2020}, Type{JouleHeatingOff}}
