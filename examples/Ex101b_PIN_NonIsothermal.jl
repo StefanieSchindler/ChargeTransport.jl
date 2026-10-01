@@ -160,7 +160,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     ## Following variable declares, if we want to solve isothermal or non-isothermal problem
     data.temperatureModel = NonIsothermal
 
-    data.jouleHeatingModel = JouleHeatingKantner2020 #JouleHeatingKantner2020  #JouleHeatingOff
+    data.jouleHeatingModel = JouleHeatingOff #JouleHeatingKantner2020  #JouleHeatingOff
 
 
 
@@ -222,15 +222,15 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     =#
 
     # Region-dependent
-    #=
-    data.params.heatSource = (node, data) -> begin
+    
+    params.heatSource = (node, data) -> begin
       if node.region == 2
-        return 5.0e8
+        return 3.0e5
       else
         return 0.0
       end
     end
-    =#
+    
 
     # Note: junction boundaries (3, 4) use InterfaceNone by default,
     # so boundaryAmbientTemp and bHeatTransferCoeff are not accessed there.

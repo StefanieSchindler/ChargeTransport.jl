@@ -825,7 +825,7 @@ function temperature_bc!(f, u, bnode, data, ::Type{NonIsothermal})
     =#
 
    
-    h = 1.0e20
+    h = 3.0e0
     f[iT] = f[iT] + h * (u[iT] - T_env)
     
 

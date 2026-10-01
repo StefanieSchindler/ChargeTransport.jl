@@ -765,17 +765,23 @@ function plot_temperature!(visualizer, ctsys, solution, title; plotGridpoints = 
     coord = grid[Coordinates]
     iT = data.index_T
 
+    T = solution[iT, :] * data.params.temperature   # absolute temperature in K # solution[iT, :] contains the dimensionless temperature
+
+    # Auto-zoom y-axis with ~10% padding around the actual data range
+    tmin, tmax = extrema(T)
+    pad = max(0.1 * (tmax - tmin), 0.5)   # guard against perfectly flat profiles
 
     scalarplot!(
         visualizer,
         grid,
-        solution[iT, :] * data.params.temperature; # solution[iT, :] contains the dimensionless temperature
+        T; 
         color = :orange,
         markershape = marker,
         markersize = 8,
         title = title,
         xlabel = L"\text{position [m]}",
-        ylabel = L"\text{temperature [K]}"
+        ylabel = L"\text{temperature [K]}",
+        limits = (tmin - pad, tmax + pad)
     )
 
     return nothing
