@@ -64,7 +64,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     bregionJunction2 = 4
 
     ## grid
-    refinementfactor = 2^(n - 1) #2^4 # 2^5
+    refinementfactor = 2^(n - 1) 
     h_pdoping = 2.0 * μm
     h_intrinsic = 2.0 * μm
     h_ndoping = 2.0 * μm
@@ -121,7 +121,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     mun = 8500.0 * (cm^2) / (V * s)
     mup = 400.0 * (cm^2) / (V * s)
     εr = 12.9 * 1.0              # relative dielectric permittivity of GAs
-    T = 300.0 * K
+    T = 300.0 * K 
 
     ## recombination parameters
     Auger = 1.0e-29 * cm^6 / s
@@ -204,7 +204,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     # ParamsNodal struct, see Ex102.
     params = Params(grid[NumCellRegions], grid[NumBFaceRegions], numberOfCarriers)
 
-    params.temperature = T
+    params.temperature = T # reference temperature for non-isothermal model
     params.chargeNumbers[iphin] = -1
     params.chargeNumbers[iphip] = 1
 
@@ -222,6 +222,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     =#
 
     # Region-dependent
+    
     
     params.heatSource = (node, data) -> begin
       if node.region == 2
@@ -277,12 +278,18 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     # system and will be parsed in next step.
     data.params = params
 
+    # Initialize a second system to compare the results with the isothermal case
+    data_Iso = deepcopy(data) # we need a copy of data struct for the isothermal case. Otherwise, there will be index errors after building the systems.
+    data_Iso.temperatureModel = Isothermal
+    ctsys_iso = System(grid, data_Iso, unknown_storage = unknown_storage)
+
+
     # In the last step, we initialize our system with previous data which is likewise
     # dependent on the parameters. It is important that this is in the end, otherwise our
     # VoronoiFVMSys is not dependent on the data we initialized but rather on default data.
     ctsys = System(grid, data, unknown_storage = unknown_storage)
 
-
+ 
     if test == false
         ## Here we can show region dependent physical parameters. show_params() only supports
         ## region dependent parameters, but, if one wishes to print nodal dependent parameters,
@@ -321,7 +328,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     control.abstol = 1.0e-8 # 1.0e-14
     control.reltol = 1.0e-8 #1.0e-14
     control.tol_round = 1.0e-8 
-    control.damp_initial = 0.5 #0.5
+    control.damp_initial = 0.5
     control.max_round = 5 # 3
 
     if test == false
@@ -335,17 +342,35 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     ################################################################################
 
     ## calculate equilibrium solution and as initial guess
-    inival_eq = unknowns(ctsys)
-    inival_eq .= 0.0
-    inival_eq[data.index_psi, :] .=  0.0 # random initial guess for electric potential  
+    # for system ctsys_iso (the isothermal version of ctsys) to compute the real equilibrium solution where also the heatflux is zero
+    solution_iso = equilibrium_solve!(ctsys_iso, control = control)
+    inival_iso = solution_iso
+
+    if test == false
+        println("*** done\n")
+    end
+    
+    ################################################################################
+    if test == false
+        println("Compute solution in quasi-thermodynamic equilibrium, i.e. with heatflux but without applied voltage")
+    end
+    ################################################################################
+
+    ## calculate a 'quasi-equilibrium solution' to improve initial guess
+        # The quasi-equilibrium solution is not the real equilibrium solution, since it has a heatflux, but it is a good initial guess for the non-isothermal system.
+    
+    inival = unknowns(ctsys)           # we need the row for the temperature unknowns
+    inival[iphin, :] .= solution_iso[iphin, :]
+    inival[iphip, :] .= solution_iso[iphip, :]
+    inival[data.index_psi, :] .= solution_iso[data.index_psi, :]
     # Temperature initial guess
     if data.temperatureModel == NonIsothermal && (data.boundaryType[bregionAcceptor] == OhmicContact && data.boundaryType[bregionDonor] == OhmicContact)
-        inival_eq[data.index_T, :] = (T_left .+ (T_right - T_left) .* coord ./ h_total) ./ data.params.temperature # linear initial guess for temperature
+        inival[data.index_T, :] = (T_left .+ (T_right - T_left) .* coord ./ h_total) ./ data.params.temperature # linear initial guess for temperature
     else 
-        inival_eq[data.index_T, :] .= T/data.params.temperature # constant initial guess for temperature
+        inival[data.index_T, :] .= T / data.params.temperature # constant initial guess for temperature
     end
 
-    solution = equilibrium_solve!(ctsys, inival = inival_eq, control = control, nonlinear_steps = 20.0)
+    solution = equilibrium_solve!(ctsys, inival = inival, control = control, nonlinear_steps = 20.0)
     inival = solution
 
     
@@ -362,6 +387,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     maxBias = voltageAcceptor # bias goes until the given voltage at acceptor boundary
     biasValues = range(0, stop = maxBias, length = 50) # length = 32
     IV = zeros(0)
+    IV_iso = zeros(0)
 
     for Δu in biasValues
 
@@ -379,6 +405,17 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
         current = get_current_val(ctsys, solution)
 
         push!(IV, abs.(w_device * z_device * (current)))
+
+        ## solution for isothermal case (for comparison)
+        set_contact!(ctsys_iso, bregionAcceptor, Δu = Δu)
+
+        solution_iso = solve(ctsys_iso; inival = inival_iso, control = control)
+        inival_iso .= solution_iso
+
+        ## get I-V data for isothermal case
+        current_iso = get_current_val(ctsys_iso, solution_iso)
+        push!(IV_iso, abs.(w_device * z_device * (current_iso)))
+
 
     end # bias loop
 
@@ -419,6 +456,12 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
         plot_temperature!(vis[3, 1], ctsys, solution, "Temperature for applied voltage Δu = $(biasValues[end])"; plotGridpoints = true)
         plot_temperatureFlux!(vis[3, 2], ctsys, solution, "Temperature flux for applied voltage Δu = $(biasValues[end])"; plotGridpoints = true)
       #  plot_jouleHeating!(vis[6, 1], ctsys, solution, "Joule heating for applied voltage Δu = $(biasValues[end])"; plotGridpoints = true)
+
+        ## plots for the isothermal case
+        plot_energies!(vis[4, 1], ctsys_iso, solution_iso, "Energies for applied voltage Δu = $(biasValues[end])", label_energy; plotGridpoints = true)
+        plot_solution!(vis[4, 2], ctsys_iso, solution_iso, "Solution for applied voltage Δu = $(biasValues[end])", label_solution; plotGridpoints = true)
+        plot_densities!(vis[5, 1], ctsys_iso, solution_iso, "Carrier densities for applied voltage Δu = $(biasValues[end])", label_density, plotGridpoints = true)
+
         reveal(vis)
     end
 
