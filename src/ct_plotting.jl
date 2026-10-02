@@ -6,7 +6,7 @@ e.g. mobile ionic carriers or traps, this can be done within the main file.
 
 """
 
-function set_plotting_labels(data)
+function set_plotting_labels(data; label_suffix = "")
 
     label_energy = Matrix{LaTeXString}(undef, 2, data.params.numberOfCarriers) # band-edge energies and potential
     label_BEE = Vector{LaTeXString}(undef, data.params.numberOfCarriers)    # band-edge energie parameters
@@ -18,12 +18,12 @@ function set_plotting_labels(data)
     iphip = data.bulkRecombination.iphip # integer index of φ_p
 
     ## for electrons
-    label_energy[1, iphin] = L"E_c-q\psi"; label_energy[2, iphin] = L"- q \varphi_n"; label_BEE[iphin] = L"E_c"
-    label_density[iphin] = L"n_n";              label_solution[iphin] = L"\varphi_n"
+    label_energy[1, iphin] = L"E_c-q\psi" * label_suffix; label_energy[2, iphin] = L"- q \varphi_n" * label_suffix; label_BEE[iphin] = L"E_c" * label_suffix
+    label_density[iphin] = L"n_n" * label_suffix;              label_solution[iphin] = L"\varphi_n" * label_suffix
 
     ## for holes
-    label_energy[1, iphip] = L"E_v-q\psi"; label_energy[2, iphip] = L"- q \varphi_p"; label_BEE[iphip] = L"E_v"
-    label_density[iphip] = L"n_p";              label_solution[iphip] = L"\varphi_p"
+    label_energy[1, iphip] = L"E_v-q\psi" * label_suffix; label_energy[2, iphip] = L"- q \varphi_p" * label_suffix; label_BEE[iphip] = L"E_v" * label_suffix
+    label_density[iphip] = L"n_p" * label_suffix;              label_solution[iphip] = L"\varphi_p" * label_suffix
 
     return label_solution, label_density, label_energy, label_BEE
 end
@@ -37,7 +37,7 @@ One input parameter is the boolean plotGridpoints which makes it possible to plo
 which indicate where the nodes are located.
 
 """
-function plot_densities!(visualizer, ctsys, solution, title, label_density, ; plotGridpoints = false)
+function plot_densities!(visualizer, ctsys, solution, title, label_density, ; plotGridpoints = false, linewidth = 3)
 
     grid = ctsys.fvmsys.grid
     data = ctsys.fvmsys.physics.data
@@ -76,7 +76,7 @@ function plot_densities!(visualizer, ctsys, solution, title, label_density, ; pl
                 label = label_is_plotted ? nothing : label_density[icc],
                 legend = :cc,
                 linestyle = linestyles[icc],
-                linewidth = 3,
+                linewidth = linewidth,
                 title = title,
                 xlabel = L"\text{space [m]}",
                 ylabel = L"density [$\frac{1}{\text{cm}^3}$]",
@@ -114,7 +114,7 @@ which indicate where the nodes are located.
 
 """
 
-function plot_energies!(visualizer, ctsys, solution, title, label_energy; plotGridpoints = false)
+function plot_energies!(visualizer, ctsys, solution, title, label_energy; plotGridpoints = false, linewidth = 2)
 
     grid = ctsys.fvmsys.grid
     data = ctsys.fvmsys.physics.data
@@ -161,7 +161,7 @@ function plot_energies!(visualizer, ctsys, solution, title, label_energy; plotGr
                 label = label_is_plotted ? nothing : label_energy[1, icc],
                 legend = :cc,
                 markersize = 8,
-                linewidth = 2,
+                linewidth = linewidth,
                 color = colors[icc],
                 linestyle = linestyles[1],
                 clear = false
@@ -175,7 +175,7 @@ function plot_energies!(visualizer, ctsys, solution, title, label_energy; plotGr
                 label = label_is_plotted ? nothing : label_energy[2, icc],
                 legend = :cc,
                 markersize = 8,
-                linewidth = 2,
+                linewidth = linewidth,
                 color = colors[icc],
                 linestyle = linestyles[2],
                 clear = false
@@ -207,7 +207,7 @@ function plot_energies!(visualizer, ctsys, solution, title, label_energy; plotGr
                     label = label_is_plotted ? nothing : label_energy[1, icc],
                     legend = :cc,
                     markershape = marker,
-                    linewidth = 2,
+                    linewidth = linewidth,
                     color = colors[icc],
                     linestyle = linestyles[1]
                 )
@@ -219,7 +219,7 @@ function plot_energies!(visualizer, ctsys, solution, title, label_energy; plotGr
                     label = label_is_plotted ? nothing : label_energy[2, icc],
                     legend = :cc,
                     markershape = marker,
-                    linewidth = 2,
+                    linewidth = linewidth,
                     color = colors[icc],
                     linestyle = linestyles[2]
                 )
@@ -257,7 +257,7 @@ function plot_energies!(visualizer, ctsys, solution, title, label_energy; plotGr
                     label = label1,
                     legend = :best,
                     markershape = marker,
-                    linewidth = 2,
+                    linewidth = linewidth,
                     color = colors[icc],
                     linestyle = linestyles[1]
                 )
@@ -269,7 +269,7 @@ function plot_energies!(visualizer, ctsys, solution, title, label_energy; plotGr
                     label = label2,
                     legend = :best,
                     markershape = marker,
-                    linewidth = 2,
+                    linewidth = linewidth,
                     color = colors[icc],
                     linestyle = linestyles[2]
                 )
@@ -296,7 +296,7 @@ With this method it is possible to depict the band-edge energies ``E_\\alpha ``.
 This can be useful for debugging when dealing with heterojunctions.
 
 """
-function plot_energies!(visualizer, ctsys, label_BEE)
+function plot_energies!(visualizer, ctsys, label_BEE; linewidth = 3)
 
     grid = ctsys.fvmsys.grid
     data = ctsys.fvmsys.physics.data
@@ -339,7 +339,7 @@ function plot_energies!(visualizer, ctsys, label_BEE)
                 clear = false,
                 markershape = :cross,
                 color = colors[icc],
-                linewidth = 3,
+                linewidth = linewidth,
                 linestyle = linestyles[icc],
             )
 
@@ -389,7 +389,7 @@ Possibility to plot the considered doping. This is especially useful
 for making sure that the interior and the boundary doping agree.
 
 """
-function plot_doping!(visualizer, ctsys, label_density)
+function plot_doping!(visualizer, ctsys, label_density; linewidth = 3)
 
     g = ctsys.fvmsys.grid
     data = ctsys.fvmsys.physics.data
@@ -428,7 +428,7 @@ function plot_doping!(visualizer, ctsys, label_density)
                 label = i == firstindex(cellregions) ? label_density[icc] : nothing,
                 legend = :rc,
                 linestyle = linestyles[icc],
-                linewidth = 3,
+                linewidth = linewidth,
                 title = "Doping values for charge carriers",
                 xlabel = L"\text{space [m]}",
                 ylabel = L"doping [$\frac{1}{\text{cm}^3}$]",
@@ -568,7 +568,7 @@ multidimensional plottings are not included.
 One input parameter is the boolean plotGridpoints which makes it possible to plot markers,
 which indicate where the nodes are located.
 """
-function plot_solution!(visualizer, ctsys, solution, title, label_solution; plotGridpoints = false)
+function plot_solution!(visualizer, ctsys, solution, title, label_solution; plotGridpoints = false, linewidth = 3)
 
     grid = ctsys.fvmsys.grid
     data = ctsys.fvmsys.physics.data
@@ -597,7 +597,7 @@ function plot_solution!(visualizer, ctsys, solution, title, label_solution; plot
         color = :blue,
         label = L"\psi",
         legend = :rc,
-        linewidth = 3,
+        linewidth = linewidth,
         markershape = marker,
         markersize = 8,
         title = title,
@@ -617,7 +617,7 @@ function plot_solution!(visualizer, ctsys, solution, title, label_solution; plot
             label = L"$\psi$ (Schottky contacts)",
             legend = :cc,
             linestyle = :dot,
-            linewidth = 3,
+            linewidth = linewidth,
             markershape = marker,
             markersize = 8
         )
@@ -635,7 +635,7 @@ function plot_solution!(visualizer, ctsys, solution, title, label_solution; plot
             label = label_solution[icc],
             legend = :cc,
             linestyle = linestyles[1],
-            linewidth = 3,
+            linewidth = linewidth,
             markershape = marker,
             markersize = 8
         )
@@ -665,7 +665,7 @@ function plot_solution!(visualizer, ctsys, solution, title, label_solution; plot
             label = label_solution[icc],
             legend = :cc,
             linestyle = linestyles[1],
-            linewidth = 3,
+            linewidth = linewidth,
             markershape = marker,
             markersize = 8
         )

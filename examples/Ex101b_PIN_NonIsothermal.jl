@@ -160,7 +160,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     ## Following variable declares, if we want to solve isothermal or non-isothermal problem
     data.temperatureModel = NonIsothermal
 
-    data.jouleHeatingModel = JouleHeatingOff #JouleHeatingKantner2020  #JouleHeatingOff
+    data.jouleHeatingModel = JouleHeatingKantner2020 #JouleHeatingKantner2020  #JouleHeatingOff
 
 
 
@@ -223,7 +223,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
 
     # Region-dependent
     
-    
+    #=
     params.heatSource = (node, data) -> begin
       if node.region == 2
         return 3.0e5
@@ -231,6 +231,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
         return 0.0
       end
     end
+    =#
     
 
     # Note: junction boundaries (3, 4) use InterfaceNone by default,
@@ -455,12 +456,12 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
       #  plot_IV!(vis[4, 2], biasValues, IV, "IV curve for applied voltage Δu = $(biasValues[end])", plotGridpoints = true)
         plot_temperature!(vis[3, 1], ctsys, solution, "Temperature for applied voltage Δu = $(biasValues[end])"; plotGridpoints = true)
         plot_temperatureFlux!(vis[3, 2], ctsys, solution, "Temperature flux for applied voltage Δu = $(biasValues[end])"; plotGridpoints = true)
-      #  plot_jouleHeating!(vis[6, 1], ctsys, solution, "Joule heating for applied voltage Δu = $(biasValues[end])"; plotGridpoints = true)
 
         ## plots for the isothermal case
-        plot_energies!(vis[4, 1], ctsys_iso, solution_iso, "Energies for applied voltage Δu = $(biasValues[end])", label_energy; plotGridpoints = true)
-        plot_solution!(vis[4, 2], ctsys_iso, solution_iso, "Solution for applied voltage Δu = $(biasValues[end])", label_solution; plotGridpoints = true)
-        plot_densities!(vis[5, 1], ctsys_iso, solution_iso, "Carrier densities for applied voltage Δu = $(biasValues[end])", label_density, plotGridpoints = true)
+        label_solution_iso, label_density_iso, label_energy_iso, label_BEE_iso = set_plotting_labels(data_Iso; label_suffix = L"\text{ (isothermal)}")
+        plot_energies!(vis[1, 2], ctsys_iso, solution_iso, "Energies for applied voltage Δu = $(biasValues[end])", label_energy_iso; plotGridpoints = false, linewidth = 1)
+        plot_solution!(vis[2, 1], ctsys_iso, solution_iso, "Solution for applied voltage Δu = $(biasValues[end])", label_solution_iso; plotGridpoints = false, linewidth = 1)
+        plot_densities!(vis[2, 2], ctsys_iso, solution_iso, "Carrier densities for applied voltage Δu = $(biasValues[end])", label_density_iso, plotGridpoints = false, linewidth = 1)
 
         reveal(vis)
     end

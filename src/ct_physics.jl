@@ -290,8 +290,13 @@ function etaFunction(sol, ireg::Int, ctsys, icc::QType)
     solcc = view(sol[icc, :], subgrid(grid, [ireg]))
     solpsi = view(sol[data.index_psi, :], subgrid(grid, [ireg]))
 
-    # Steffi: Ich weiss nicht, wie ich params.temperature hier ersetzen kann?
-    T = data.params.temperature
+    if data.temperatureModel == NonIsothermal
+        solT = view(sol[data.index_T, :], subgrid(grid, [ireg]))
+        T = solT .* data.params.temperature
+    else
+        T = data.params.temperature
+    end
+
     return @. data.params.chargeNumbers[icc] / (data.constants.k_B * T) * ((solcc - solpsi) * data.constants.q + Ecc)
 end
 
@@ -825,7 +830,7 @@ function temperature_bc!(f, u, bnode, data, ::Type{NonIsothermal})
     =#
 
    
-    h = 3.0e0
+    h = 1.0e8 #3.0e0
     f[iT] = f[iT] + h * (u[iT] - T_env)
     
 
