@@ -589,6 +589,7 @@ function plot_solution!(visualizer, ctsys, solution, title, label_solution; plot
     colors = ["green", "red", "gold", "purple", "orange"]
     linestyles = [:solid, :dot, :dash, :dashdot, :solid]
 
+
     scalarplot!(
         visualizer,
         grid,
@@ -605,6 +606,7 @@ function plot_solution!(visualizer, ctsys, solution, title, label_solution; plot
         ylabel = L"\text{potential [V]}"
     )
 
+    
     if data.barrierLoweringInfo.BarrierLoweringOn == BarrierLoweringOn
         ipsiStandard = data.barrierLoweringInfo.ipsiStandard
 
@@ -826,7 +828,6 @@ function plot_temperatureFlux!(visualizer, ctsys, solution, title; plotGridpoint
     system = ctsys.fvmsys
     nf = VoronoiFVM.nodeflux(system, solution)
 
-
     vectorplot!(
         visualizer,
         grid,
@@ -852,3 +853,127 @@ function plot_temperatureFlux(Plotter, ctsys, solution, title; plotGridpoints = 
     return reveal(vis)
 end
 
+
+
+
+"""
+$(TYPEDSIGNATURES)
+Postprocess the Joule heating source term (W/m³) as nodal values.
+"""
+function compute_jouleHeating(ctsys, solution)
+    system = ctsys.fvmsys
+    data   = system.physics.data
+    grid   = system.grid
+
+    data.temperatureModel == Isothermal && return zeros(num_nodes(grid))
+    data.jouleHeatingModel  == JouleHeatingOff && return zeros(num_nodes(grid))
+
+    iT     = data.index_T
+    nspec  = VoronoiFVM.num_species(system)
+    nnodes = num_nodes(grid)
+
+    qJ    = zeros(nnodes)          # nodal Joule heating [W/m³]
+    wsum  = zeros(nnodes)          # weights for averaging
+
+    edge  = VoronoiFVM.Edge(system)
+    UKL   = zeros(eltype(solution), 2 * nspec)
+    res   = zeros(eltype(solution), nspec)
+
+    for item in VoronoiFVM.edgebatch(system.assembly_data)
+        for iedge in VoronoiFVM.edgerange(system.assembly_data, item)
+            VoronoiFVM._fill!(edge, system.assembly_data, iedge, item)
+            @views UKL[1:nspec]           .= solution[:, edge.node[1]]
+            @views UKL[nspec+1:2nspec]    .= solution[:, edge.node[2]]
+            res .= zero(eltype(solution))
+            jouleHeating!(VoronoiFVM.rhs(edge, res), VoronoiFVM.unknowns(edge, UKL), edge, data)
+
+            h = VoronoiFVM.meas(edge)                       # edge length [m]
+            q = -res[iT] * data.params.temperature / h^2       # [W/m³]
+
+            # scatter to both nodes, weighted by the edge form factor
+            for K in edge.node
+                qJ[K]   += edge.fac * q
+                wsum[K] += edge.fac
+            end
+        end
+    end
+    return qJ ./ wsum
+end
+
+function plot_jouleHeating!(visualizer, ctsys, solution, title; plotGridpoints = false)
+    data = ctsys.fvmsys.physics.data
+    data.temperatureModel == Isothermal && return nothing
+
+    grid = ctsys.fvmsys.grid
+    qJ   = compute_jouleHeating(ctsys, solution)
+
+    marker = plotGridpoints ? :circle : :none
+    qmin, qmax = extrema(qJ)
+    pad = max(0.1 * (qmax - qmin), 1e-6 * max(abs(qmax), 1.0))
+
+    scalarplot!(
+        visualizer, grid, qJ;
+        color = :red, markershape = marker, markersize = 8,
+        title = title,
+        xlabel = L"\text{position [m]}",
+        ylabel = L"\text{Joule heating } [\frac{W}{m^3}]",
+      #  limits = (qmin - pad, qmax + pad),
+        yscale = :log
+    )
+    return nothing
+end
+
+function plot_jouleHeating(Plotter, ctsys, solution, title; plotGridpoints = false)
+    @warn "plot_jouleHeating() is deprecated, please use plot_jouleHeating!() with a GridVisualizer"
+    vis = GridVisualizer(Plotter = Plotter)
+    plot_jouleHeating!(vis, ctsys, solution, title; plotGridpoints)
+    return reveal(vis)
+end
+
+"""
+$(TYPEDSIGNATURES)
+Method for plotting the charge carrier fluxes.
+"""
+function plot_chargeCarrierFlux!(visualizer, ctsys, solution, title; plotGridpoints = false, linewidth = 3)
+
+    data = ctsys.fvmsys.physics.data
+    grid = ctsys.fvmsys.grid
+    system = ctsys.fvmsys
+
+    marker = plotGridpoints ? :circle : :none
+
+    colors = ["green", "red", "gold", "purple", "orange"]
+    linestyles = [:solid, :dot, :dash, :dashdot, :solid]
+
+    # nodal reconstruction of the edge fluxes: nf[dim, icc, node]
+    nf = VoronoiFVM.nodeflux(system, solution)
+
+    for (i, icc) in enumerate(data.electricCarrierList)
+        vectorplot!(
+            visualizer,
+            grid,
+            nf[:, icc, :];
+            clear = false,
+            color = colors[icc],
+            linewidth = linewidth,
+            label = i == 1 ? L"J_n" : L"J_p",
+            legend = :cc,
+            markershape = marker,
+            markersize = 8,
+            title = title,
+            xlabel = L"\text{position [m]}",
+            ylabel = L"\text{current density } [\frac{A}{m^2}]"
+        )
+    end
+  #  println("The minimum and maximum of the charge carrier fluxes J_n are: $(minimum(nf[:, 1, :])) and $(maximum(nf[:, 1, :]))")
+  #  println("The minimum and maximum of the charge carrier fluxes J_p are: $(minimum(nf[:, 2, :])) and $(maximum(nf[:, 2, :]))")
+
+    return nothing
+end
+
+function plot_chargeCarrierFlux(Plotter, ctsys, solution, title; plotGridpoints = false)
+    @warn "plot_chargeCarrierFlux() is deprecated, please use plot_chargeCarrierFlux!() with a GridVisualizer"
+    vis = GridVisualizer(Plotter = Plotter)
+    plot_chargeCarrierFlux!(vis, ctsys, solution, title; plotGridpoints)
+    return reveal(vis)
+end

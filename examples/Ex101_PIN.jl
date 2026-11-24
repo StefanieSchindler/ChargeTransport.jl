@@ -90,7 +90,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     bfacemask!(grid, [h_pdoping + h_intrinsic], [h_pdoping + h_intrinsic], bregionJunction2) # second inner interface
 
     if Plotter !== nothing
-        vis = GridVisualizer(; Plotter, layout = (4, 2), size = (1550, 800))
+        vis = GridVisualizer(; Plotter, layout = (5, 2), size = (1550, 800))
         gridplot!(vis[1, 1], grid; Plotter, legend = :lt, title = "Grid", xlabel = L"\text{space [m]}", show = true)
     end
 
@@ -265,7 +265,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     control.maxiters = 50
     control.abstol = 1.0e-14
     control.reltol = 1.0e-14
-    control.tol_round = 1.0e-8
+    control.tol_round = 1.0e-10
     control.damp_initial = 0.5
     control.max_round = 3
 
@@ -284,6 +284,9 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     inival = solution
 
 
+    plot_chargeCarrierFlux!(vis[3,1], ctsys, solution, "Charge Carrier Flux for applied voltage Δu ", plotGridpoints = true)
+
+    return
     if test == false
         println("*** done\n")
     end
@@ -294,7 +297,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     ################################################################################
 
     maxBias = voltageAcceptor # bias goes until the given voltage at acceptor boundary
-    biasValues = range(0, stop = maxBias, length = 32)
+    biasValues = range(0, stop = maxBias, length = 100)
     IV = zeros(0)
 
     for Δu in biasValues
@@ -312,6 +315,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
         ## get I-V data
         current = get_current_val(ctsys, solution)
 
+    
         push!(IV, abs.(w_device * z_device * (current)))
 
     end # bias loop
@@ -330,7 +334,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
         plot_solution!(vis[3, 2], ctsys, solution, "Solution for applied voltage Δu = $(biasValues[end])", label_solution; plotGridpoints = true)
         plot_densities!(vis[4, 1], ctsys, solution, "Carrier densities for applied voltage Δu = $(biasValues[end])", label_density, plotGridpoints = true)
         plot_IV!(vis[4, 2], biasValues, IV, "IV curve for applied voltage Δu = $(biasValues[end])", plotGridpoints = true)
-
+        plot_chargeCarrierFlux!(vis[5,1], ctsys, solution, "Charge Carrier Flux for applied voltage Δu = $(biasValues[end])", plotGridpoints = true)
         reveal(vis)
     end
 

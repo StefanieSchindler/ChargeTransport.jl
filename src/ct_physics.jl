@@ -820,7 +820,7 @@ function temperature_bc!(f, u, bnode, data, ::Type{NonIsothermal})
     params = data.params
     iT = data.index_T
     T_env = params.boundaryAmbientTemp[bnode.region] / params.temperature
-    
+
     #=
     if bnode.region == 2
         boundary_dirichlet!(f,u, bnode, species = iT, region = bnode.region, value = T_env)
@@ -828,13 +828,16 @@ function temperature_bc!(f, u, bnode, data, ::Type{NonIsothermal})
         boundary_dirichlet!(f,u, bnode, species = iT, region = bnode.region, value = T_env)
     end
     =#
-
-   
-    h = 1.0e8 #3.0e0
-    f[iT] = f[iT] + h * (u[iT] - T_env)
     
 
-     #=
+   
+    h = 1.0e6 #3.0e0
+    f[iT] = f[iT] + h * (u[iT] - T_env)
+
+
+    
+
+    #=
     T_env = params.boundaryAmbientTemp[bnode.region] / data.params.temperature
     factor =  1.0e7
     boundary_robin!(f, u, bnode, species = iT, region = bnode.region, factor = factor, value = factor * T_env)
@@ -2000,7 +2003,7 @@ heatFlux!(f, u, edge, data, ::Type{Isothermal}) = emptyFunction()
 function heatFlux!(f, u, edge, data, ::Type{NonIsothermal})
     iT = data.index_T
     params = data.params
-    f[iT] = - params.thermalConductivity * (u[iT, 2] - u[iT, 1]) 
+    f[iT] = - params.thermalConductivity * (u[iT, 2] - u[iT, 1])
 
     return nothing
 end

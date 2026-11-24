@@ -134,6 +134,7 @@ export plot_temperature, plot_temperature!
 export plot_temperatureFlux, plot_temperatureFlux!
 export plot_jouleHeating, plot_jouleHeating!
 export compute_jouleHeating
+export plot_chargeCarrierFlux, plot_chargeCarrierFlux!
 
 
 #################################################################

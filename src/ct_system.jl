@@ -2143,7 +2143,8 @@ function _equilibrium_solve!(::Val{true}, ctsys::System; inival, control, nonlin
 
     iphin = data.bulkRecombination.iphin # integer index of φ_n
     iphip = data.bulkRecombination.iphip # integer index of φ_p
-   # T = params.temperature
+    
+    T = params.temperature  # Initial guess only: at equilibrium (no Joule heating) T ≈ params.temperature.
     (; k_B, q) = data.constants
 
     for iicc in data.ionicCarrierList
@@ -2151,13 +2152,6 @@ function _equilibrium_solve!(::Val{true}, ctsys::System; inival, control, nonlin
         for ireg in iicc.regions
 
             icc = iicc.ionicCarrier # species number chosen by user
-
-            #------ Steffi: use temperature from solution for non-isothermal, params.temperature for isothermal ------
-            if data.temperatureModel == NonIsothermal
-                T = data.params.temperature #TODO: #sol[data.index_T, ...] * data.params.temperature ???
-            else
-                T = params.temperature
-            end
 
             # --- define function to be minimized ---
             mOmega = data.regionVolumes[ireg]

@@ -22,7 +22,8 @@ using DocStringExtensions: TYPEDSIGNATURES
 
 ## This function is used to initialize the grid for a possible extension to other p-i-n devices.
 function initialize_pin_grid(refinementfactor, h_ndoping, h_intrinsic, h_pdoping)
-    coord_ndoping = collect(range(0.0, stop = h_ndoping, length = 3 * refinementfactor))
+    #coord_ndoping = collect(range(0.0, stop = h_ndoping, length = 3 * refinementfactor)) # 
+    coord_ndoping = geomspace(0.0, h_ndoping, 1.0e-7 / refinementfactor, 1.0e-6 / refinementfactor) # coord_ndoping = geomspace(0.0, h_ndoping, 6.0e-8 / refinementfactor, 1.0e-6 / refinementfactor) #
     coord_intrinsic = collect(range(h_ndoping, stop = (h_ndoping + h_intrinsic), length = 3 * refinementfactor))
     coord_pdoping = collect(range((h_ndoping + h_intrinsic), stop = (h_ndoping + h_intrinsic + h_pdoping), length = 3 * refinementfactor))
     coord = glue(coord_ndoping, coord_intrinsic)
@@ -160,7 +161,7 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     ## Following variable declares, if we want to solve isothermal or non-isothermal problem
     data.temperatureModel = NonIsothermal
 
-    data.jouleHeatingModel = JouleHeatingKantner2020 #JouleHeatingKantner2020  #JouleHeatingOff
+    data.jouleHeatingModel =  JouleHeatingKantner2020 # JouleHeatingOff #  #JouleHeatingKantner2020  #
 
 
 
@@ -173,14 +174,14 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
         bulk_recomb_SRH = true
     )
     # Steffi: set FermiDiracOneHalf for checkig DiffusionEnhanced implementation
-    data.F = [FermiDiracOneHalfBednarczyk, FermiDiracOneHalfBednarczyk]
+    #data.F = [FermiDiracOneHalfBednarczyk, FermiDiracOneHalfBednarczyk]
 
     # Steffi: set flux approximation to test the non-isothermal model and jouleHeating
-    data.fluxApproximation[iphin] = DiffusionEnhanced #  ScharfetterGummel #  
-    data.fluxApproximation[iphip] = DiffusionEnhanced #  ScharfetterGummel #   
+    data.fluxApproximation[iphin] = DiffusionEnhanced #     ScharfetterGummel #
+    data.fluxApproximation[iphip] = DiffusionEnhanced # ScharfetterGummel #
 
 
-    data.ohmicContactModel = OhmicContactDirichlet # OhmicContactRobin #
+    data.ohmicContactModel = OhmicContactDirichlet # OhmicContactRobin # 
 
     ## Following choices are possible for boundary model: For contacts currently only
     ## OhmicContact and SchottkyContact are possible. For inner boundaries we have
@@ -326,10 +327,11 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     control = SolverControl()
     control.verbose = verbose
     control.maxiters = 200 # 50
-    control.abstol = 1.0e-8 # 1.0e-14
-    control.reltol = 1.0e-8 #1.0e-14
+    control.abstol = 1.0e-7 # 1.0e-14
+    control.reltol = 1.0e-7 #1.0e-14
     control.tol_round = 1.0e-8 
-    control.damp_initial = 0.5
+    control.damp_initial = 0.9
+    control.damp_growth = 1.6
     control.max_round = 5 # 3
 
     if test == false
@@ -361,19 +363,19 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
         # The quasi-equilibrium solution is not the real equilibrium solution, since it has a heatflux, but it is a good initial guess for the non-isothermal system.
     
     inival = unknowns(ctsys)           # we need the row for the temperature unknowns
-    inival[iphin, :] .= solution_iso[iphin, :]
-    inival[iphip, :] .= solution_iso[iphip, :]
-    inival[data.index_psi, :] .= solution_iso[data.index_psi, :]
+    inival[iphin, :] .= 0.0#solution_iso[iphin, :]
+    inival[iphip, :] .= 0.0#solution_iso[iphip, :]
+    inival[data.index_psi, :] .= 0.0#solution_iso[data.index_psi, :]
     # Temperature initial guess
     if data.temperatureModel == NonIsothermal && (data.boundaryType[bregionAcceptor] == OhmicContact && data.boundaryType[bregionDonor] == OhmicContact)
         inival[data.index_T, :] = (T_left .+ (T_right - T_left) .* coord ./ h_total) ./ data.params.temperature # linear initial guess for temperature
     else 
         inival[data.index_T, :] .= T / data.params.temperature # constant initial guess for temperature
+  
     end
 
-    solution = equilibrium_solve!(ctsys, inival = inival, control = control, nonlinear_steps = 20.0)
+    solution = equilibrium_solve!(ctsys, inival = inival, control = control, nonlinear_steps = 20)
     inival = solution
-
     
     if test == false
         println("*** done\n")
@@ -385,8 +387,8 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
     ################################################################################
 
     println("calculationType: ", ctsys.fvmsys.physics.data.calculationType)
-    maxBias = voltageAcceptor # bias goes until the given voltage at acceptor boundary
-    biasValues = range(0, stop = maxBias, length = 50) # length = 32
+    maxBias = 1.3 * V #voltageAcceptor # bias goes until the given voltage at acceptor boundary
+    biasValues = range(0, stop = maxBias, length = 300) # length = 32
     IV = zeros(0)
     IV_iso = zeros(0)
 
@@ -456,13 +458,16 @@ function main(; n = 3, Plotter = nothing, verbose = false, test = false, unknown
       #  plot_IV!(vis[4, 2], biasValues, IV, "IV curve for applied voltage Δu = $(biasValues[end])", plotGridpoints = true)
         plot_temperature!(vis[3, 1], ctsys, solution, "Temperature for applied voltage Δu = $(biasValues[end])"; plotGridpoints = true)
         plot_temperatureFlux!(vis[3, 2], ctsys, solution, "Temperature flux for applied voltage Δu = $(biasValues[end])"; plotGridpoints = true)
+        plot_jouleHeating!(vis[4, 1], ctsys, solution, "Joule heating for applied voltage Δu = $(biasValues[end])"; plotGridpoints = true)
+        plot_chargeCarrierFlux!(vis[4, 2], ctsys, solution, "Charge carrier fluxes for applied voltage Δu = $(biasValues[end])"; plotGridpoints = true)
 
-        ## plots for the isothermal case
+        #= plots for the isothermal case
         label_solution_iso, label_density_iso, label_energy_iso, label_BEE_iso = set_plotting_labels(data_Iso; label_suffix = L"\text{ (isothermal)}")
         plot_energies!(vis[1, 2], ctsys_iso, solution_iso, "Energies for applied voltage Δu = $(biasValues[end])", label_energy_iso; plotGridpoints = false, linewidth = 1)
         plot_solution!(vis[2, 1], ctsys_iso, solution_iso, "Solution for applied voltage Δu = $(biasValues[end])", label_solution_iso; plotGridpoints = false, linewidth = 1)
         plot_densities!(vis[2, 2], ctsys_iso, solution_iso, "Carrier densities for applied voltage Δu = $(biasValues[end])", label_density_iso, plotGridpoints = false, linewidth = 1)
-
+        plot_chargeCarrierFlux!(vis[4, 2], ctsys_iso, solution_iso, "Charge carrier fluxes for applied voltage Δu = $(biasValues[end])"; plotGridpoints = false, linewidth = 1)
+        =#
         reveal(vis)
     end
 
